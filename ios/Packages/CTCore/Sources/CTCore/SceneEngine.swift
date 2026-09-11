@@ -39,9 +39,24 @@ public enum SceneEngine {
         state.bubble = greeting(at: minute, plan: plan)
         applyClockGreet(to: &state, atMinute: minute)
         stillWhileAsleep(&state, in: segment)
-        state.frame = frameIndex(for: state, in: segment, atMinute: minute,
-                                 character: input.character, rng: rng)
-        return Interrupts.apply(to: state, context: input.context)
+
+        // **コマ番号と味付けは、割り込みを当てたあとに決める。** 割り込みは行動を
+        // 差し替えるので、先に決めると姿勢と合わなくなる（コマ数も動きも姿勢ごとに違う）。
+        let interrupted = Interrupts.apply(to: state, context: input.context)
+        return animated(interrupted, in: segment, atMinute: minute,
+                        character: input.character, rng: rng)
+    }
+
+    /// 確定した行動に合わせて、コマ番号と味付けを入れる。
+    static func animated(_ state: SceneState, in segment: Segment, atMinute minute: Double,
+                         character: CTCore.Character, rng: IndexedRandom) -> SceneState {
+        let pose = state.activity.pose
+        let localSeconds = (minute - segment.startMinute) * 60
+        var result = state
+        result.frame = Motion.frameIndex(pose: pose, frameCount: character.frameCount(pose),
+                                         localSeconds: localSeconds, rng: rng)
+        result.flourish = ProceduralMotion.flourish(pose: pose, localSeconds: localSeconds)
+        return result
     }
 
     /// 0:00 以上 24:00 未満に収める。
@@ -76,7 +91,7 @@ public enum SceneEngine {
     /// 毎正時の時報。歩いていても立ち止まって正面を向く。眠っているあいだは起こさない。
     static func applyClockGreet(to state: inout SceneState, atMinute minute: Double) {
         let secondOfHour = (minute * 60).truncatingRemainder(dividingBy: secondsPerHour)
-        guard secondOfHour < clockGreetSeconds, !Interrupts.isAsleep(state.activity) else { return }
+        guard secondOfHour < clockGreetSeconds, !state.activity.isAsleep else { return }
         let hour = Int(minute / 60) % 24
         state.activity = .clockGreet
         state.facing = .front
@@ -85,19 +100,9 @@ public enum SceneEngine {
 
     /// 眠っているあいだは動かない。
     static func stillWhileAsleep(_ state: inout SceneState, in segment: Segment) {
-        guard Interrupts.isAsleep(state.activity) else { return }
+        guard state.activity.isAsleep else { return }
         state.position = segment.from
         state.facing = .front
-    }
-
-    /// いま何コマ目か。**姿勢が確定したあとに呼ぶ**（コマ数は姿勢ごとに違うため）。
-    static func frameIndex(for state: SceneState, in segment: Segment, atMinute minute: Double,
-                           character: CTCore.Character, rng: IndexedRandom) -> Int {
-        let pose = state.activity.pose
-        return Motion.frameIndex(pose: pose,
-                                 frameCount: character.frameCount(pose),
-                                 localSeconds: (minute - segment.startMinute) * 60,
-                                 rng: rng)
     }
 
     /// 複数の時刻をまとめて。同じ日の行動表を作り直さないので、ウィジェットの

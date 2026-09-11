@@ -27,7 +27,7 @@ public enum Interrupts {
         let sinceCapture = state.time.timeIntervalSince(context.capturedAt)
         guard context.isCharging == true,
               sinceCapture >= 0, sinceCapture < chargingReactionSeconds,
-              !isAsleep(state.activity) else { return nil }
+              !state.activity.isAsleep else { return nil }
         var result = state
         result.changeActivity(to: .happyStretch)
         result.bubble = Bubble(text: "ありがとう", kind: .reaction)
@@ -42,12 +42,5 @@ public enum Interrupts {
         var result = state
         result.changeActivity(to: .idle)
         return result
-    }
-
-    static func isAsleep(_ activity: Activity) -> Bool {
-        switch activity {
-        case .sleep, .nap: true
-        default: false
-        }
     }
 }

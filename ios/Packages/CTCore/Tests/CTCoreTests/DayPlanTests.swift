@@ -114,7 +114,7 @@ struct DayPlanTests {
     func mostOfTheDayIsAwake() {
         let plan = DayPlan.make(for: Self.someDay, input: Self.input(Self.piyo))
         let asleep = plan.segments
-            .filter { Interrupts.isAsleep($0.activity) }
+            .filter { ($0.activity).isAsleep }
             .reduce(0) { $0 + $1.durationMinutes }
         #expect(asleep > 5 * 60 && asleep < 12 * 60, "睡眠が \(asleep / 60) 時間")
     }

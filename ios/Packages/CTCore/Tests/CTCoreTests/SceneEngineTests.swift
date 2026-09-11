@@ -62,10 +62,10 @@ struct SceneEngineTests {
     @Test("深夜は寝ていて、昼は起きている")
     func sleepsAtNightAndIsAwakeAtNoon() {
         let world = Self.world()
-        #expect(Interrupts.isAsleep(SceneEngine.sceneState(at: Self.at(3, 0), input: world).activity))
-        #expect(Interrupts.isAsleep(SceneEngine.sceneState(at: Self.at(4, 30), input: world).activity))
-        #expect(!Interrupts.isAsleep(SceneEngine.sceneState(at: Self.at(12, 30), input: world).activity))
-        #expect(!Interrupts.isAsleep(SceneEngine.sceneState(at: Self.at(17, 20), input: world).activity))
+        #expect((SceneEngine.sceneState(at: Self.at(3, 0), input: world).activity).isAsleep)
+        #expect((SceneEngine.sceneState(at: Self.at(4, 30), input: world).activity).isAsleep)
+        #expect(!(SceneEngine.sceneState(at: Self.at(12, 30), input: world).activity).isAsleep)
+        #expect(!(SceneEngine.sceneState(at: Self.at(17, 20), input: world).activity).isAsleep)
     }
 
     @Test("起きた直後は「おはよう」と言う")
@@ -178,7 +178,7 @@ struct SceneEngineTests {
         let first = SceneEngine.sceneState(at: Self.at(2, 0), input: world)
         for minute in stride(from: 0, to: 90, by: 7) {
             let state = SceneEngine.sceneState(at: Self.at(2, 0).addingTimeInterval(Double(minute) * 60), input: world)
-            guard Interrupts.isAsleep(state.activity) else { continue }
+            guard state.activity.isAsleep else { continue }
             #expect(state.position == first.position)
             #expect(state.facing == .front)
         }
@@ -219,7 +219,7 @@ struct SceneEngineTests {
         let charging = Self.world(context: ContextSnapshot(batteryLevel: 0.4, isCharging: true,
                                                            capturedAt: time))
         let state = SceneEngine.sceneState(at: time.addingTimeInterval(30), input: charging)
-        #expect(Interrupts.isAsleep(state.activity))
+        #expect(state.activity.isAsleep)
     }
 
     /// 姿勢ごとにコマ数が違う（歩く 4 枚・よろこぶ 2 枚）。割り込みで姿勢を差し替えたとき、
