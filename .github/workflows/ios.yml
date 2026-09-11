@@ -3,8 +3,9 @@
 # macOS ランナーは Linux の 10 倍課金されるので、ios/ を触った PR だけで動かす。
 # パッケージは iOS / macOS プラットフォームを宣言しているため Linux では走らない。
 #
-# 注意: ランナーの Xcode が 26.6 以上であることを前提にしている。GitHub 側の
-# 既定バージョンが古いときは xcode-select の行を実際の版に合わせること（未検証）。
+# ランナーは macos-26 を指名する。macos-15 には Xcode 16 系（Swift 6.1）しか無く、
+# パッケージが要求する swift-tools-version 6.2 を満たせない。macos-latest は
+# 時期によって指す先が変わるので使わない。
 name: iOS
 
 on:
@@ -17,11 +18,33 @@ on:
 jobs:
   test:
     name: パッケージ単体テスト
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+
       - name: Xcode を選ぶ
-        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer || xcodebuild -version
+        run: |
+          # 手元と同じ 26.6 を使う。無ければ既定のまま進み、次の検査で落とす。
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          fi
+          xcodebuild -version
+          swift --version
+
+      - name: Swift の版を確かめる
+        run: |
+          # ここで落としておかないと、SwiftPM が出す
+          # "using Swift tools version 6.2.0 but the installed version is 6.1.0"
+          # という読み解きにくい形で後から失敗する。
+          required=6.2
+          installed=$(swift --version 2>&1 \
+            | sed -n 's/.*Swift version \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
+          echo "必要: ${required} 以上 / 入っているもの: ${installed}"
+          if [ "$(printf '%s\n%s\n' "$required" "$installed" | sort -V | head -1)" != "$required" ]; then
+            echo "::error::Swift ${installed} ではパッケージ（swift-tools-version 6.2）をビルドできません。ランナーか Xcode の指定を見直してください。"
+            exit 1
+          fi
+
       - name: swift test
         run: |
           for pkg in ios/Packages/*/; do
@@ -31,19 +54,32 @@ jobs:
 
   build:
     name: シミュレータ向けビルド
-    runs-on: macos-15
+    runs-on: macos-26
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - name: XcodeGen
+
+      - name: Xcode を選ぶ
+        run: |
+          if [ -d /Applications/Xcode_26.6.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.6.app
+          fi
+          xcodebuild -version
+
+      - name: XcodeGen を入れる
         run: brew install xcodegen xcbeautify
+
       - name: プロジェクト生成
         run: cd ios && xcodegen generate
+
       - name: ビルド
+        # 端末名ではなく generic を指定する。ランナーに入っているシミュレータの
+        # 顔ぶれが変わっても、コンパイルが通るかどうかの確認は成立する。
         run: |
+          set -o pipefail
           xcodebuild build \
             -project ios/CharaTime.xcodeproj \
             -scheme CharaTime \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath ios/build | xcbeautify

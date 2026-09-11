@@ -136,6 +136,28 @@ public struct SkeletonView: View {
             passed: dimmed == .staticOnly,
             detail: "減光中は \(dimmed.label) まで落ちる"))
 
+        // 日課エンジン: 同梱キャラで、いまの姿を引けるか
+        if let character = characters.first(where: { $0.id == loaded.state.selectedCharacterID })
+            ?? characters.first {
+            let world = WorldInput(
+                character: character,
+                room: Room(background: .bundled("room-a"),
+                           floor: RoomRect(x: 0.06, y: 0.62, width: 0.88, height: 0.24),
+                           items: [PlacedItem(id: "mb", kind: .mirrorBall, position: RoomPoint(x: 0.5, y: 0.70)),
+                                   PlacedItem(id: "cu", kind: .cushion, position: RoomPoint(x: 0.86, y: 0.74))]),
+                userSeed: loaded.state.userSeed)
+            let now = Date()
+            let state = SceneEngine.sceneState(at: now, input: world)
+            let plan = DayPlan.make(for: DayKey(now, calendar: world.calendar), input: world)
+            let wake = String(format: "%02d:%02d", Int(plan.wakeMinute) / 60, Int(plan.wakeMinute) % 60)
+            let bed = String(format: "%02d:%02d", Int(plan.bedtimeMinute) / 60 % 24, Int(plan.bedtimeMinute) % 60)
+            checks.append(Check(
+                title: "日課エンジン ・ いまの姿",
+                passed: plan.segments.count > 10,
+                detail: "\(character.displayName)は「\(state.activity.label)」"
+                    + " ・ 起床 \(wake) 就寝 \(bed) ・ 今日は \(plan.segments.count) 区切り"))
+        }
+
         return checks
     }
 }
