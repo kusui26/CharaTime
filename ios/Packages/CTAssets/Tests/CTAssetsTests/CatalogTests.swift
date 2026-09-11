@@ -46,8 +46,10 @@ struct CatalogTests {
     func personalities() throws {
         let all = try Catalog.characters()
         for character in all {
-            let p = character.personality
-            #expect((0...1).contains(p.activity) && (0...1).contains(p.nightOwl) && (0...1).contains(p.napiness))
+            let personality = character.personality
+            #expect((0...1).contains(personality.activity))
+            #expect((0...1).contains(personality.nightOwl))
+            #expect((0...1).contains(personality.napiness))
         }
         // 全員が同じ性格だと日課が同じになってしまう
         #expect(Set(all.map(\.personality.activity)).count >= 4)

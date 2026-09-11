@@ -110,7 +110,9 @@ struct StateStoreTests {
     func noContainer() {
         let store = StateStore(directory: nil)
         #expect(store.load().outcome == .noContainer)
-        #expect(throws: StateStore.StoreError.noContainer) { try store.save(AppState(userSeed: 1)) }
+        #expect(throws: StateStore.StoreError.noContainer(appGroup: AppGroup.identifier)) {
+            try store.save(AppState(userSeed: 1))
+        }
     }
 
     @Test("保存した JSON は人が読める形で並ぶ")

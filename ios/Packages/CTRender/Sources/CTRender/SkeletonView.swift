@@ -90,76 +90,107 @@ public struct SkeletonView: View {
     // MARK: - 検査
 
     static func run(store: StateStore) -> [Check] {
-        var checks: [Check] = []
-
-        // CTCore: プロセスをまたいでも同じ値になるか
-        let golden = Hash64.combine(0, [1])
-        checks.append(Check(
-            title: "CTCore ・ 決定論ハッシュ",
-            passed: golden == 10_257_114_587_443_610_966,
-            detail: "combine(0,[1]) = \(golden)"))
-
-        // CTAssets: 同梱データが読めるか
+        let loaded = store.load()
         let characters = Catalog.charactersOrEmpty()
-        let frameTotal = characters.first.map { c in Pose.allCases.reduce(0) { $0 + c.frameCount($1) } } ?? 0
-        checks.append(Check(
+        // 日課エンジンの検査だけは、キャラが 1 体も読めないと成り立たないので nil になる。
+        let all: [Check?] = [
+            deterministicHashCheck(),
+            bundledDataCheck(characters),
+            appGroupCheck(store: store, outcome: loaded.outcome),
+            fallbackCheck(),
+            dayPlanCheck(characters: characters, state: loaded.state)
+        ]
+        return all.compactMap { $0 }
+    }
+
+    /// プロセスをまたいでも同じ値になるか。値が変わったら、ウィジェットで見た姿と
+    /// アプリを開いた姿が食い違う（`Hash64` の説明を参照）。
+    private static func deterministicHashCheck() -> Check {
+        let golden = Hash64.combine(0, [1])
+        return Check(title: "CTCore ・ 決定論ハッシュ",
+                     passed: golden == expectedCombineGolden,
+                     detail: "combine(0,[1]) = \(golden)")
+    }
+
+    /// 同梱データが読めるか。
+    private static func bundledDataCheck(_ characters: [CTCore.Character]) -> Check {
+        let frameTotal = characters.first.map { character in
+            Pose.allCases.reduce(0) { $0 + character.frameCount($1) }
+        } ?? 0
+        let names = characters.map(\.displayName).joined(separator: "、")
+        return Check(
             title: "CTAssets ・ 同梱データ",
-            passed: characters.count == 5 && frameTotal == 11,
+            passed: characters.count == expectedCharacterCount && frameTotal == expectedFrameCount,
             detail: characters.isEmpty
                 ? "characters.json を読めなかった"
-                : "\(characters.count) 体 ・ \(characters.map(\.displayName).joined(separator: "、")) ・ 1 体 \(frameTotal) 枚"))
-
-        // CTStore: App Group に書いて読めるか
-        let loaded = store.load()
-        switch loaded.outcome {
-        case .noContainer:
-            checks.append(Check(title: "CTStore ・ App Group", passed: false,
-                                detail: "共有コンテナに届かない（\(AppGroup.identifier) が未設定）"))
-        default:
-            var passed = false
-            var detail = ""
-            do {
-                let state = try store.loadOrCreate()
-                let again = store.load()
-                passed = again.state.userSeed == state.userSeed && again.outcome == .loaded
-                detail = "種 \(String(state.userSeed, radix: 16)) ・ \(store.fileURL?.lastPathComponent ?? "-")"
-            } catch {
-                detail = String(describing: error)
-            }
-            checks.append(Check(title: "CTStore ・ App Group", passed: passed, detail: detail))
-        }
-
-        // CTRender: 梯子が期待どおりに落ちるか
-        let dimmed = RenderCapability.resolve(RenderContext(surface: .homeWidget, luminanceReduced: true))
-        checks.append(Check(
-            title: "CTRender ・ フォールバック",
-            passed: dimmed == .staticOnly,
-            detail: "減光中は \(dimmed.label) まで落ちる"))
-
-        // 日課エンジン: 同梱キャラで、いまの姿を引けるか
-        if let character = characters.first(where: { $0.id == loaded.state.selectedCharacterID })
-            ?? characters.first {
-            let world = WorldInput(
-                character: character,
-                room: Room(background: .bundled("room-a"),
-                           floor: RoomRect(x: 0.06, y: 0.62, width: 0.88, height: 0.24),
-                           items: [PlacedItem(id: "mb", kind: .mirrorBall, position: RoomPoint(x: 0.5, y: 0.70)),
-                                   PlacedItem(id: "cu", kind: .cushion, position: RoomPoint(x: 0.86, y: 0.74))]),
-                userSeed: loaded.state.userSeed)
-            let now = Date()
-            let state = SceneEngine.sceneState(at: now, input: world)
-            let plan = DayPlan.make(for: DayKey(now, calendar: world.calendar), input: world)
-            let wake = String(format: "%02d:%02d", Int(plan.wakeMinute) / 60, Int(plan.wakeMinute) % 60)
-            let bed = String(format: "%02d:%02d", Int(plan.bedtimeMinute) / 60 % 24, Int(plan.bedtimeMinute) % 60)
-            checks.append(Check(
-                title: "日課エンジン ・ いまの姿",
-                passed: plan.segments.count > 10,
-                detail: "\(character.displayName)は「\(state.activity.label)」"
-                    + " ・ 起床 \(wake) 就寝 \(bed) ・ 今日は \(plan.segments.count) 区切り"))
-        }
-
-        return checks
+                : "\(characters.count) 体 ・ \(names) ・ 1 体 \(frameTotal) 枚")
     }
+
+    /// App Group に書いて読み返せるか。
+    private static func appGroupCheck(store: StateStore, outcome: StateStore.LoadOutcome) -> Check {
+        let title = "CTStore ・ App Group"
+        guard outcome != .noContainer else {
+            return Check(title: title, passed: false,
+                         detail: "共有コンテナに届かない（\(AppGroup.identifier) が未設定）")
+        }
+        do {
+            let state = try store.loadOrCreate()
+            let again = store.load()
+            let seed = String(state.userSeed, radix: 16)
+            return Check(title: title,
+                         passed: again.state.userSeed == state.userSeed && again.outcome == .loaded,
+                         detail: "種 \(seed) ・ \(store.fileURL?.lastPathComponent ?? "-")")
+        } catch {
+            return Check(title: title, passed: false, detail: String(describing: error))
+        }
+    }
+
+    /// 描画の梯子が期待どおりに落ちるか。
+    private static func fallbackCheck() -> Check {
+        let dimmed = RenderCapability.resolve(RenderContext(surface: .homeWidget,
+                                                            luminanceReduced: true))
+        return Check(title: "CTRender ・ フォールバック",
+                     passed: dimmed == .staticOnly,
+                     detail: "減光中は \(dimmed.label) まで落ちる")
+    }
+
+    /// 同梱キャラで、いまの姿を引けるか。キャラが 1 体も読めなければ検査そのものが無い。
+    private static func dayPlanCheck(characters: [CTCore.Character], state: AppState) -> Check? {
+        guard let character = characters.first(where: { $0.id == state.selectedCharacterID })
+                ?? characters.first else { return nil }
+        let world = WorldInput(character: character, room: sampleRoom, userSeed: state.userSeed)
+        let now = Date()
+        let scene = SceneEngine.sceneState(at: now, input: world)
+        let plan = DayPlan.make(for: DayKey(now, calendar: world.calendar), input: world)
+        return Check(
+            title: "日課エンジン ・ いまの姿",
+            passed: plan.segments.count > minimumSegmentCount,
+            detail: "\(character.displayName)は「\(scene.activity.label)」"
+                + " ・ 起床 \(clock(plan.wakeMinute)) 就寝 \(clock(plan.bedtimeMinute))"
+                + " ・ 今日は \(plan.segments.count) 区切り")
+    }
+
+    private static func clock(_ minute: Double) -> String {
+        String(format: "%02d:%02d", Int(minute) / 60 % 24, Int(minute) % 60)
+    }
+
+    // MARK: - 検査が期待する値
+
+    /// `Hash64.combine(0, [1])` の凍結値。テスト側と同じ数字を、わざと別々に書いてある。
+    /// 片方を書き換えただけでは検査が通らないようにするため。
+    private static let expectedCombineGolden: UInt64 = 10_257_114_587_443_610_966
+    private static let expectedCharacterCount = 5
+    /// Tier 1 の 1 体あたりの総コマ数（プラン §5.5）。
+    private static let expectedFrameCount = 11
+    /// 一日の区切りがこれ以下なら、日課表が組み立てられていない。
+    private static let minimumSegmentCount = 10
+
+    /// 自己診断だけで使う仮の部屋。製品の部屋ではない。
+    private static let sampleRoom = Room(
+        background: .bundled("room-a"),
+        floor: RoomRect(x: 0.06, y: 0.62, width: 0.88, height: 0.24),
+        items: [PlacedItem(id: "mb", kind: .mirrorBall, position: RoomPoint(x: 0.5, y: 0.70)),
+                PlacedItem(id: "cu", kind: .cushion, position: RoomPoint(x: 0.86, y: 0.74))])
 }
 
 #Preview {

@@ -182,7 +182,10 @@ struct DayPlanTests {
         for offset in 0..<14 {
             let plan = DayPlan.make(for: Self.someDay.advanced(by: offset),
                                     input: Self.input(Self.piyo, items: [cushion]))
-            if plan.segments.contains(where: { if case .sit(let id) = $0.activity { id == "cushion" } else { false } }) {
+            let satOnCushion = plan.segments.contains { segment in
+                if case .sit(let id) = segment.activity { id == "cushion" } else { false }
+            }
+            if satOnCushion {
                 found = true; break
             }
         }
@@ -295,7 +298,7 @@ struct DayPlanTests {
             Self.character("mochi", activity: 0.3, nightOwl: 0.4, napiness: 0.8, favorites: [.cushion]),
             Self.character("kumao", activity: 0.4, nightOwl: 0.5, napiness: 0.5, favorites: [.cushion]),
             Self.character("fuwa", activity: 0.6, nightOwl: 0.9, napiness: 0.3, favorites: [.mirrorBall]),
-            Self.character("chip", activity: 0.5, nightOwl: 0.35, napiness: 0.3, favorites: [.deskClock]),
+            Self.character("chip", activity: 0.5, nightOwl: 0.35, napiness: 0.3, favorites: [.deskClock])
         ]
         var totalSegments = 0
         for chara in roster {
@@ -370,7 +373,7 @@ struct DailyMixTests {
     static let items = [
         PlacedItem(id: "mb", kind: .mirrorBall, position: RoomPoint(x: 0.50, y: 0.70)),
         PlacedItem(id: "cu", kind: .cushion, position: RoomPoint(x: 0.86, y: 0.74)),
-        PlacedItem(id: "pl", kind: .plant, position: RoomPoint(x: 0.12, y: 0.70)),
+        PlacedItem(id: "pl", kind: .plant, position: RoomPoint(x: 0.12, y: 0.70))
     ]
 
     /// 1 日あたりの、行動ごとの分数。

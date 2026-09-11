@@ -10,6 +10,8 @@ public enum SceneEngine {
     public static let clockGreetSeconds: Double = 30
     /// 起床・就寝の挨拶を出す長さ。
     public static let greetingMinutes: Double = 3
+    /// 時報の判定に使う 1 時間の秒数。
+    static let secondsPerHour: Double = 3600
 
     /// ある時刻の姿。
     public static func sceneState(at time: Date, input: WorldInput) -> SceneState {
@@ -29,46 +31,73 @@ public enum SceneEngine {
         guard plan.day == today else {
             return sceneState(at: time, input: input, plan: DayPlan.make(for: today, input: input))
         }
-        let minute = Swift.min(Swift.max(input.calendar.minuteOfDay(time), 0),
-                               Schedule.minutesPerDay - 0.000_1)
+        let minute = clampToDay(input.calendar.minuteOfDay(time))
         let segment = plan.segment(atMinute: minute)
-        let floor = input.room.floor
+        let rng = segmentRandom(for: segment, in: plan, input: input)
 
-        // 区切りごとに独立した乱数列。区切りが 1 つ変わっても、ほかの区切りの動きは変わらない。
-        let rng = IndexedRandom(seed: input.userSeed,
-                                StableHash.string(input.character.id),
-                                plan.day.seedComponent,
-                                UInt64(bitPattern: Int64(segment.startMinute * 100)))
-
-        let localSeconds = (minute - segment.startMinute) * 60
-        var activity = segment.activity
-        var position = Motion.position(in: segment, atMinute: minute, rng: rng, floor: floor)
-        var facing = Motion.facing(in: segment, atMinute: minute, rng: rng, floor: floor)
-        var bubble = greeting(at: minute, plan: plan, activity: activity)
-
-        // 毎正時の時報。歩いていても立ち止まって正面を向く。
-        let secondOfHour = (minute * 60).truncatingRemainder(dividingBy: 3600)
-        if secondOfHour < clockGreetSeconds, !Interrupts.isAsleep(activity) {
-            let hour = Int(minute / 60) % 24
-            activity = .clockGreet
-            facing = .front
-            bubble = Bubble(text: "\(hour)時だよ", kind: .clock)
-        }
-
-        // 眠っているあいだは動かない。
-        if Interrupts.isAsleep(activity) {
-            position = segment.from
-            facing = .front
-        }
-
-        let pose = activity.pose
-        let frame = Motion.frameIndex(pose: pose,
-                                      frameCount: input.character.frameCount(pose),
-                                      localSeconds: localSeconds, rng: rng)
-
-        let state = SceneState(time: time, activity: activity, position: position,
-                               facing: facing, frame: frame, bubble: bubble)
+        var state = posture(in: segment, atMinute: minute, time: time, input: input, rng: rng)
+        state.bubble = greeting(at: minute, plan: plan)
+        applyClockGreet(to: &state, atMinute: minute)
+        stillWhileAsleep(&state, in: segment)
+        state.frame = frameIndex(for: state, in: segment, atMinute: minute,
+                                 character: input.character, rng: rng)
         return Interrupts.apply(to: state, context: input.context)
+    }
+
+    /// 0:00 以上 24:00 未満に収める。
+    static func clampToDay(_ minute: Double) -> Double {
+        Swift.min(Swift.max(minute, 0), Schedule.minutesPerDay - Schedule.epsilonMinutes)
+    }
+
+    /// 区切りごとに独立した乱数列。
+    ///
+    /// 区切りの開始時刻を種に混ぜるので、ひとつの区切りが変わっても、
+    /// ほかの区切りの動き（経由点のゆらぎやまばたきの間隔）は変わらない。
+    static func segmentRandom(for segment: Segment, in plan: DayPlan,
+                              input: WorldInput) -> IndexedRandom {
+        IndexedRandom(seed: input.userSeed,
+                      StableHash.string(input.character.id),
+                      plan.day.seedComponent,
+                      UInt64(bitPattern: Int64(segment.startMinute * 100)))
+    }
+
+    /// 区切りから素直に導かれる姿（割り込みを当てる前）。
+    static func posture(in segment: Segment, atMinute minute: Double, time: Date,
+                        input: WorldInput, rng: IndexedRandom) -> SceneState {
+        let floor = input.room.floor
+        return SceneState(
+            time: time,
+            activity: segment.activity,
+            position: Motion.position(in: segment, atMinute: minute, rng: rng, floor: floor),
+            facing: Motion.facing(in: segment, atMinute: minute, rng: rng, floor: floor),
+            frame: 0)
+    }
+
+    /// 毎正時の時報。歩いていても立ち止まって正面を向く。眠っているあいだは起こさない。
+    static func applyClockGreet(to state: inout SceneState, atMinute minute: Double) {
+        let secondOfHour = (minute * 60).truncatingRemainder(dividingBy: secondsPerHour)
+        guard secondOfHour < clockGreetSeconds, !Interrupts.isAsleep(state.activity) else { return }
+        let hour = Int(minute / 60) % 24
+        state.activity = .clockGreet
+        state.facing = .front
+        state.bubble = Bubble(text: "\(hour)時だよ", kind: .clock)
+    }
+
+    /// 眠っているあいだは動かない。
+    static func stillWhileAsleep(_ state: inout SceneState, in segment: Segment) {
+        guard Interrupts.isAsleep(state.activity) else { return }
+        state.position = segment.from
+        state.facing = .front
+    }
+
+    /// いま何コマ目か。**姿勢が確定したあとに呼ぶ**（コマ数は姿勢ごとに違うため）。
+    static func frameIndex(for state: SceneState, in segment: Segment, atMinute minute: Double,
+                           character: CTCore.Character, rng: IndexedRandom) -> Int {
+        let pose = state.activity.pose
+        return Motion.frameIndex(pose: pose,
+                                 frameCount: character.frameCount(pose),
+                                 localSeconds: (minute - segment.startMinute) * 60,
+                                 rng: rng)
     }
 
     /// 複数の時刻をまとめて。同じ日の行動表を作り直さないので、ウィジェットの
@@ -77,19 +106,14 @@ public enum SceneEngine {
         var cache: [DayKey: DayPlan] = [:]
         return times.map { time in
             let day = DayKey(time, calendar: input.calendar)
-            let plan: DayPlan
-            if let cached = cache[day] {
-                plan = cached
-            } else {
-                plan = DayPlan.make(for: day, input: input)
-                cache[day] = plan
-            }
+            let plan = cache[day] ?? DayPlan.make(for: day, input: input)
+            cache[day] = plan
             return sceneState(at: time, input: input, plan: plan)
         }
     }
 
     /// 起きたときと寝る前の挨拶。
-    static func greeting(at minute: Double, plan: DayPlan, activity: Activity) -> Bubble? {
+    static func greeting(at minute: Double, plan: DayPlan) -> Bubble? {
         if minute >= plan.wakeMinute, minute < plan.wakeMinute + greetingMinutes {
             return Bubble(text: "おはよう", kind: .greeting)
         }
