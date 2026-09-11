@@ -131,7 +131,7 @@ struct JSONShapeTests {
             personality: Personality(activity: 0.5, nightOwl: 0.5, napiness: 0.5),
             poses: [:], origin: .bundled))
         let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        #expect(object["origin"] as? [String: Any] != nil)
+        #expect(object["origin"] is [String: Any])
         #expect((object["origin"] as? [String: Any])?["bundled"] != nil)
     }
 

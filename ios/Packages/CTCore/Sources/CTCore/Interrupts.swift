@@ -17,26 +17,30 @@ public enum Interrupts {
 
     public static func apply(to state: SceneState, context: ContextSnapshot?) -> SceneState {
         guard let context else { return state }
+        if let thanks = chargingReaction(to: state, context: context) { return thanks }
+        return lowBatterySlowdown(of: state, context: context) ?? state
+    }
+
+    /// 充電を始めた直後だけ喜ぶ。ずっと喜んでいるとうるさいので時間で切る。
+    private static func chargingReaction(to state: SceneState,
+                                         context: ContextSnapshot) -> SceneState? {
+        let sinceCapture = state.time.timeIntervalSince(context.capturedAt)
+        guard context.isCharging == true,
+              sinceCapture >= 0, sinceCapture < chargingReactionSeconds,
+              !isAsleep(state.activity) else { return nil }
         var result = state
+        result.changeActivity(to: .happyStretch)
+        result.bubble = Bubble(text: "ありがとう", kind: .reaction)
+        return result
+    }
 
-        // 充電を始めた直後だけ喜ぶ。ずっと喜んでいるとうるさいので時間で切る。
-        if context.isCharging == true,
-           state.time.timeIntervalSince(context.capturedAt) >= 0,
-           state.time.timeIntervalSince(context.capturedAt) < chargingReactionSeconds,
-           !isAsleep(state.activity) {
-            result.activity = .happyStretch
-            result.facing = .front
-            result.bubble = Bubble(text: "ありがとう", kind: .reaction)
-            return result
-        }
-
-        // 電池が少ないときは歩き回らない。吹き出しは出さない（急かさないため）。
-        if let level = context.batteryLevel, level < lowBatteryThreshold,
-           context.isCharging != true, case .wander = state.activity {
-            result.activity = .idle
-            result.facing = .front
-            result.position = state.position
-        }
+    /// 電池が少ないときは歩き回らない。吹き出しは出さない（急かさないため）。
+    private static func lowBatterySlowdown(of state: SceneState,
+                                           context: ContextSnapshot) -> SceneState? {
+        guard let level = context.batteryLevel, level < lowBatteryThreshold,
+              context.isCharging != true, case .wander = state.activity else { return nil }
+        var result = state
+        result.changeActivity(to: .idle)
         return result
     }
 

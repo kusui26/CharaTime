@@ -222,6 +222,34 @@ struct SceneEngineTests {
         #expect(Interrupts.isAsleep(state.activity))
     }
 
+    /// 姿勢ごとにコマ数が違う（歩く 4 枚・よろこぶ 2 枚）。割り込みで姿勢を差し替えたとき、
+    /// 歩いている 4 コマ目のままだと、2 枚しかない配列の 4 番目を引いて落ちる。
+    ///
+    /// **端数の秒でずらして調べること。** ちょうどの秒（:00、:30）で引くと
+    /// 歩きのコマ番号がいつも同じ値になり（`Int(秒 × 8) % 4` が 0 に張りつく）、
+    /// コマ番号のずれを見逃す。
+    @Test("割り込みで姿勢が変わったら、コマ番号が新しい姿勢の範囲に収まる")
+    func interruptKeepsFrameInRange() {
+        let character = Self.world().character
+        let offsetsSeconds = [0.37, 12.8, 41.15, 77.6]
+        for minute in stride(from: 0, to: 24 * 60, by: 7) {
+            let time = Self.at(minute / 60, minute % 60)
+            let contexts = [ContextSnapshot(batteryLevel: 0.4, isCharging: true, capturedAt: time),
+                            ContextSnapshot(batteryLevel: 0.05, isCharging: false, capturedAt: time)]
+            for context in contexts {
+                for offset in offsetsSeconds {
+                    let state = SceneEngine.sceneState(at: time.addingTimeInterval(offset),
+                                                       input: Self.world(context: context))
+                    let frameCount = character.frameCount(state.activity.pose)
+                    let message = "\(minute / 60):\(minute % 60)+\(offset)秒 \(state.activity.label)"
+                        + " コマ \(state.frame) / \(frameCount) 枚"
+                    #expect(state.frame >= 0 && state.frame < Swift.max(1, frameCount),
+                            Comment(rawValue: message))
+                }
+            }
+        }
+    }
+
     // MARK: - 速さ
 
     /// ウィジェットは 5 分刻みで 4〜6 時間ぶん（48〜72 件）のエントリを一度に作る。

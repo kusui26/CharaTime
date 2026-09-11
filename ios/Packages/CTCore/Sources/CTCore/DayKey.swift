@@ -48,12 +48,12 @@ public struct DayKey: Hashable, Sendable, Codable, Comparable {
         let era = (z >= 0 ? z : z - 146_096) / 146_097
         let dayOfEra = z - era * 146_097                                     // [0, 146096]
         let yearOfEra = (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146_096) / 365
-        let y = yearOfEra + era * 400
+        let shiftedYear = yearOfEra + era * 400
         let dayOfYear = dayOfEra - (365 * yearOfEra + yearOfEra / 4 - yearOfEra / 100)
-        let mp = (5 * dayOfYear + 2) / 153                                   // [0, 11]
-        let d = dayOfYear - (153 * mp + 2) / 5 + 1                           // [1, 31]
-        let m = mp + (mp < 10 ? 3 : -9)                                      // [1, 12]
-        self.init(year: y + (m <= 2 ? 1 : 0), month: m, day: d)
+        let shiftedMonth = (5 * dayOfYear + 2) / 153                         // [0, 11]
+        let dayOfMonth = dayOfYear - (153 * shiftedMonth + 2) / 5 + 1        // [1, 31]
+        let month = shiftedMonth + (shiftedMonth < 10 ? 3 : -9)              // [1, 12]
+        self.init(year: shiftedYear + (month <= 2 ? 1 : 0), month: month, day: dayOfMonth)
     }
 
     public static func < (lhs: DayKey, rhs: DayKey) -> Bool { lhs.ordinal < rhs.ordinal }

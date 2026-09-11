@@ -105,4 +105,49 @@ struct RenderCapabilityTests {
         #expect(seen.contains(.timelineTransition))
         #expect(seen.contains(.ambient4fps))
     }
+
+    /// 面の頭打ちと、端末の状態による頭打ちは、**両方かかる**。
+    ///
+    /// Live Activity は 4KB の制約で最大 1fps だが、そこに Reduce Motion が重なれば
+    /// さらに下がる。片方だけを見て答えを返すと、Reduce Motion を入れているのに
+    /// 動いてしまう。
+    @Test("Live Activity の頭打ちと端末の状態の頭打ちが重なる")
+    func liveActivityStacksWithDeviceLimits() {
+        func resolve(reduceMotion: Bool = false, lowPower: Bool = false,
+                     pseudoAnimation: Bool = true) -> RenderCapability {
+            RenderCapability.resolve(RenderContext(
+                surface: .liveActivity, spike: .go, pseudoAnimationEnabled: pseudoAnimation,
+                reduceMotion: reduceMotion, lowPowerMode: lowPower))
+        }
+        #expect(resolve() == .ambient1fps)
+        #expect(resolve(reduceMotion: true) == .timelineTransition)
+        #expect(resolve(lowPower: true) == .timelineTransition)
+        #expect(resolve(pseudoAnimation: false) == .timelineTransition)
+    }
+
+    /// **迷ったら下げる。** 制約を 1 つ足して段が上がることは、決してあってはならない。
+    @Test("制約を足すと、段は必ず下がるか同じ")
+    func constraintsNeverRaiseTheLadder() {
+        for surface in Surface.allCases {
+            for spike in [SpikeVerdict.unknown, .go, .conditionalGo, .noGo] {
+                let free = RenderCapability.resolve(RenderContext(
+                    surface: surface, spike: spike, pseudoAnimationEnabled: true))
+                let constraints: [RenderContext] = [
+                    RenderContext(surface: surface, spike: spike,
+                                  pseudoAnimationEnabled: false),
+                    RenderContext(surface: surface, spike: spike,
+                                  pseudoAnimationEnabled: true, reduceMotion: true),
+                    RenderContext(surface: surface, spike: spike,
+                                  pseudoAnimationEnabled: true, lowPowerMode: true),
+                    RenderContext(surface: surface, spike: spike,
+                                  pseudoAnimationEnabled: true, luminanceReduced: true)
+                ]
+                for context in constraints {
+                    let limited = RenderCapability.resolve(context)
+                    let message = "\(surface) \(spike): \(free.label) → \(limited.label)"
+                    #expect(limited <= free, Comment(rawValue: message))
+                }
+            }
+        }
+    }
 }

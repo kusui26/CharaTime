@@ -25,8 +25,17 @@ public struct StateStore: Sendable {
         public var outcome: LoadOutcome
     }
 
-    public enum StoreError: Error, Sendable, Equatable {
-        case noContainer
+    public enum StoreError: Error, Sendable, Equatable, CustomStringConvertible {
+        /// 書き込み先が無い。どの App Group を探して届かなかったかを添える。
+        case noContainer(appGroup: String)
+
+        public var description: String {
+            switch self {
+            case .noContainer(let appGroup):
+                "共有コンテナに書けません（App Group \(appGroup) が未設定か、"
+                    + "entitlements に入っていません）"
+            }
+        }
     }
 
     public static let fileName = "state.json"
@@ -72,7 +81,9 @@ public struct StateStore: Sendable {
 
     /// 途中で落ちても壊れないように、一時ファイルへ書いてから差し替える。
     public func save(_ state: AppState) throws {
-        guard let fileURL, let directory else { throw StoreError.noContainer }
+        guard let fileURL, let directory else {
+            throw StoreError.noContainer(appGroup: AppGroup.identifier)
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         var stored = state
@@ -98,7 +109,7 @@ public struct StateStore: Sendable {
         case .loaded:
             return loaded.state
         case .noContainer:
-            throw StoreError.noContainer
+            throw StoreError.noContainer(appGroup: AppGroup.identifier)
         case .notFound, .corrupted, .futureSchema:
             let fresh = AppState.makeInitial()
             try save(fresh)

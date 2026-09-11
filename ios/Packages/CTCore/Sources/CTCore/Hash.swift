@@ -30,11 +30,9 @@ public enum Hash64 {
     /// 連番の疑似乱数と違って途中を再生する必要がないので、3 時間後の姿も直接引ける。
     /// 並び順と個数が違えば違う値になる（`[1]` と `[1, 0]` は別物）。
     public static func combine(_ seed: UInt64, _ parts: [UInt64]) -> UInt64 {
-        var h = mix(seed &+ gamma)
-        for part in parts {
-            h = mix(h ^ mix(part &+ gamma))
+        parts.reduce(mix(seed &+ gamma)) { accumulated, part in
+            mix(accumulated ^ mix(part &+ gamma))
         }
-        return h
     }
 
     /// `combine(_:_:)` の可変長引数版。
@@ -49,13 +47,15 @@ public enum Hash64 {
 /// プロセスごとに変わるので使えない（`Hash64` の説明を参照）。
 public enum StableHash {
 
+    /// FNV-1a の初期値と乗数（64 ビット版の定数）。
+    static let fnvOffsetBasis: UInt64 = 0xCBF2_9CE4_8422_2325
+    static let fnvPrime: UInt64 = 0x0000_0100_0000_01B3
+
     public static func string(_ value: String) -> UInt64 {
-        var hash: UInt64 = 0xCBF2_9CE4_8422_2325      // FNV offset basis
-        for byte in value.utf8 {
-            hash ^= UInt64(byte)
-            hash = hash &* 0x0000_0100_0000_01B3      // FNV prime
+        let folded = value.utf8.reduce(fnvOffsetBasis) { hash, byte in
+            (hash ^ UInt64(byte)) &* fnvPrime
         }
         // FNV-1a は下位ビットの散りが弱い。最後にもう一度撹拌する。
-        return Hash64.mix(hash)
+        return Hash64.mix(folded)
     }
 }

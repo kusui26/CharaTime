@@ -73,30 +73,43 @@ public extension RenderCapability {
     /// 迷ったら下げる。上げてよいのは、スパイクで Go が出ていて、設定が入で、
     /// 省電力でも Reduce Motion でも減光中でもないときだけ。
     static func resolve(_ context: RenderContext) -> RenderCapability {
+        if let fixed = fixedCapability(for: context) { return fixed }
+        return Swift.min(ceiling(forSpike: context.spike), throttle(for: context))
+    }
+
+    /// 面や端末の状態だけで段が決まってしまう場合。ほかの条件を見るまでもない。
+    private static func fixedCapability(for context: RenderContext) -> RenderCapability? {
         // 常時表示の減光中は OS がアニメを行わない。上げても電池を使うだけ。
         if context.luminanceReduced { return .staticOnly }
-
         // ロック画面は脱色表示で、そもそも細かい動きが読めない。
         if context.surface == .lockWidget { return .timelineTransition }
-
         // 待受モードは SwiftUI が 60fps で描くので、この梯子を使わない。
         // 呼ばれたときは最上段を返しておく（描画側が別経路を選ぶ）。
         if context.surface == .standbyMode { return .ambient4fps }
+        return nil
+    }
 
-        var ceiling: RenderCapability = switch context.spike {
-        case .go:            .ambient4fps
-        case .conditionalGo: .timelineTransition
-        case .noGo:          .timelineTransition
-        case .unknown:       .timelineTransition   // 測るまでは安全側
+    /// 実機スパイクの判定が許す上限。測るまでは安全側に置く（プラン D-11）。
+    private static func ceiling(forSpike spike: SpikeVerdict) -> RenderCapability {
+        switch spike {
+        case .go: .ambient4fps
+        case .conditionalGo, .noGo, .unknown: .timelineTransition
         }
+    }
 
-        if !context.pseudoAnimationEnabled { ceiling = min(ceiling, .timelineTransition) }
-        if context.reduceMotion            { ceiling = min(ceiling, .timelineTransition) }
-        if context.lowPowerMode            { ceiling = min(ceiling, .timelineTransition) }
+    /// 設定・省電力・面の制約による頭打ち。**迷ったら下げる**ので、
+    /// 2 つの頭打ちは低いほうを採る。
+    private static func throttle(for context: RenderContext) -> RenderCapability {
+        // 設定が切、Reduce Motion、省電力のどれかなら上げない。
+        let heldDown = !context.pseudoAnimationEnabled
+            || context.reduceMotion
+            || context.lowPowerMode
+        let byState: RenderCapability = heldDown ? .timelineTransition : .ambient4fps
 
         // Live Activity は 4KB の制約があり、コマ数を増やしても載らない。
-        if context.surface == .liveActivity { ceiling = min(ceiling, .ambient1fps) }
+        let bySurface: RenderCapability = context.surface == .liveActivity
+            ? .ambient1fps : .ambient4fps
 
-        return ceiling
+        return Swift.min(byState, bySurface)
     }
 }

@@ -4,7 +4,7 @@
 #
 # docs/260910_dev_plan.md §8.3 の①〜⑥を 1 コマンドで実行する。
 #   ① xcodegen generate     project.yml から .xcodeproj を生成
-#   ② swift test            ローカルパッケージの単体テスト（いちばん軽い。数十ミリ秒）
+#   ② scripts/check.sh      品質ゲート（lint → 警告ゼロのビルド → テスト。数秒）
 #   ③ xcodebuild build      シミュレータ向けビルド
 #   ④ simctl install/launch シミュレータへ導入して起動
 #   ⑤ status_bar override   スクリーンショット用にステータスバーを固定
@@ -77,14 +77,11 @@ generate_project() {
   ( cd "${IOS_DIR}" && xcodegen generate )
 }
 
-test_packages() {
-  log "② パッケージ単体テスト（swift test）"
-  local pkg
-  for pkg in "${IOS_DIR}"/Packages/*/; do
-    [[ -f "${pkg}/Package.swift" ]] || continue
-    log "   └ $(basename "${pkg}")"
-    swift test --package-path "${pkg}"
-  done
+# 品質ゲートは scripts/check.sh に一本化してある（lint・警告ゼロのビルド・テスト）。
+# CI も同じものを見るので、二重に書かない。
+run_checks() {
+  log "② 品質ゲート（scripts/check.sh）"
+  "${REPO_ROOT}/scripts/check.sh"
 }
 
 build_app() {
@@ -156,7 +153,7 @@ main() {
   parse_args "$@"
 
   if [[ "${test_only}" == true ]]; then
-    test_packages
+    run_checks
     return 0
   fi
 
@@ -171,7 +168,7 @@ main() {
   [[ -f "${IOS_DIR}/project.yml" ]] || die "${IOS_DIR}/project.yml がありません。"
 
   generate_project
-  [[ "${skip_test}" == false ]] && test_packages
+  [[ "${skip_test}" == false ]] && run_checks
   build_app
   boot_simulator
   install_and_launch

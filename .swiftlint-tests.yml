@@ -1,0 +1,37 @@
+# テストコード用の lint 設定。
+#
+# テストは「一日ぶんを総当たりで確かめる」ような長い検査を書くので、長さの規則を外す。
+# 強制アンラップも規約どおりテストでは許す（`tokyo.date(from:)!` など）。
+# それ以外は製品コードと同じ規則で見る。
+
+included:
+  - ios/Packages/CTCore/Tests
+  - ios/Packages/CTAssets/Tests
+  - ios/Packages/CTRender/Tests
+  - ios/Packages/CTStore/Tests
+
+line_length:
+  warning: 120
+  error: 140
+  ignores_comments: true
+
+identifier_name:
+  min_length: 2
+  excluded: [x, y, a, b, t, h, z, id, dx]
+
+disabled_rules:
+  - function_body_length
+  - type_body_length
+  - file_length
+  - cyclomatic_complexity
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - first_where
+  - last_where
+  - closure_spacing
+  - explicit_init
+  - operator_usage_whitespace
+  - redundant_nil_coalescing
+  - toggle_bool

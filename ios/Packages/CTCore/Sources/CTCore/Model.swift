@@ -282,6 +282,18 @@ public struct SceneState: Sendable, Equatable {
         self.frame = frame
         self.bubble = bubble
     }
+
+    /// 割り込みで行動を差し替える。
+    ///
+    /// **コマ番号を 0 に戻すのが要点。** 姿勢ごとにコマ数が違う（歩く 4 枚・
+    /// よろこぶ 2 枚）ので、歩いている 4 コマ目のまま「よろこぶ」に変えると、
+    /// 2 枚しかない配列の 4 番目を引いて落ちる。姿勢が変わればコマ送りは最初から始まる。
+    public mutating func changeActivity(to newActivity: Activity) {
+        guard activity != newActivity else { return }
+        activity = newActivity
+        facing = .front
+        frame = 0
+    }
 }
 
 // MARK: - 小さな道具

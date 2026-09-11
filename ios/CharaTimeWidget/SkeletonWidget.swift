@@ -47,7 +47,7 @@ struct SkeletonProvider: TimelineProvider {
         case .notFound:          "まだ無い"
         case .noContainer:       "共有コンテナに届かない"
         case .corrupted:         "壊れていたので既定値"
-        case .futureSchema(let v): "新しい版 \(v) なので既定値"
+        case .futureSchema(let version): "新しい版 \(version) なので既定値"
         }
 
         return SkeletonEntry(
