@@ -1,0 +1,84 @@
+# CharaTime の lint 設定。
+#
+# .claude/CLAUDE.md §3 のコーディング規約を、機械が見張れる部分だけ書き写したもの。
+# 数字の根拠は規約側にある。ここを緩めるときは規約も一緒に直すこと。
+
+included:
+  - ios/Packages/CTCore/Sources
+  - ios/Packages/CTAssets/Sources
+  - ios/Packages/CTRender/Sources
+  - ios/Packages/CTStore/Sources
+  - ios/CharaTime
+  - ios/CharaTimeWidget
+
+excluded:
+  - ios/build
+  - design
+  - docs
+
+# 規約「1 関数は 20 行未満」。swiftlint はコメント行と空行を数えない。
+function_body_length:
+  warning: 20
+  error: 30
+
+# 規約「強制アンラップはテストとプレビューだけ」。
+force_unwrapping:
+  severity: error
+force_cast:
+  severity: error
+force_try:
+  severity: error
+
+line_length:
+  warning: 110
+  error: 130
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 250
+  error: 350
+
+file_length:
+  warning: 500
+  error: 700
+  ignore_comment_only_lines: true
+
+cyclomatic_complexity:
+  warning: 8
+  error: 12
+
+identifier_name:
+  min_length: 2
+  excluded: [x, y, a, b, t, h, z, id, dx]
+
+nesting:
+  type_level: 2
+
+opt_in_rules:
+  - force_unwrapping
+  - empty_count
+  - first_where
+  - last_where
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - redundant_nil_coalescing
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - closure_spacing
+  - explicit_init
+  - joined_default_parameter
+  - literal_expression_end_indentation
+  - operator_usage_whitespace
+  - overridden_super_call
+  - prohibited_super_call
+  - sorted_first_last
+  - unavailable_function
+  - vertical_parameter_alignment_on_call
+  - yoda_condition
+
+disabled_rules:
+  # 日本語のコメントは 1 行が長くなる。行の長さは line_length で見ている。
+  - todo
+
+# テストは .swiftlint-tests.yml で別に見る（長さの規則を外すため）。

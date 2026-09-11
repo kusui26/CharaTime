@@ -12,12 +12,15 @@ on:
   pull_request:
     paths:
       - "ios/**"
+      - "scripts/**"
+      - ".swiftlint.yml"
+      - ".swiftlint-tests.yml"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
 
 jobs:
   test:
-    name: パッケージ単体テスト
+    name: 品質ゲート
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -45,12 +48,12 @@ jobs:
             exit 1
           fi
 
-      - name: swift test
-        run: |
-          for pkg in ios/Packages/*/; do
-            echo "── $(basename "$pkg")"
-            swift test --package-path "$pkg"
-          done
+      - name: SwiftLint を入れる
+        run: brew install swiftlint
+
+      - name: 品質ゲート（lint → 警告ゼロのビルド → テスト）
+        # 手元の scripts/check.sh と同じものを回す。CI だけが見ている規則を作らない。
+        run: scripts/check.sh
 
   build:
     name: シミュレータ向けビルド
