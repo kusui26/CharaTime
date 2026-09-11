@@ -33,8 +33,9 @@ def svg_layer(inner, w=390, h=844, z=0, extra="", top="0"):
             'xmlns="http://www.w3.org/2000/svg">%s</svg>' % (w, h, w, h, top, z, extra, inner))
 
 def sprite_at(c, pose, cx, foot_y, w, flip=False, z=3, op=1.0):
-    h = w / 120.0 * 170.0
-    top = foot_y - h * (163.0 / 170.0)
+    # 枠と接地線の割合は chara.py が持つ（書き出す PNG と同じ値）。
+    h = w / chara.ASPECT
+    top = foot_y - h * chara.GROUND_RATIO
     tr = "transform:scaleX(-1);" if flip else ""
     return ('<div style="position:absolute;left:%gpx;top:%gpx;width:%gpx;height:%gpx;z-index:%d;%sopacity:%g;">%s</div>'
             % (cx - w / 2, top, w, h, z, tr, op, chara.svg(c, pose, w, h)))
@@ -637,13 +638,15 @@ def build_sheet():
                    + '<div style="font-size:16px;font-weight:700;color:' + INK + ';letter-spacing:1px;">'
                    + p["name"] + '</div>'
                    + '<div style="display:flex;gap:6px;">' + sw + '</div></div>')
-    poses = [("idle", "立つ 1/2"), ("blink", "立つ 2/2"), ("walk", "歩く 1/4"), ("walk2", "歩く 2/4"),
-             ("sit", "すわる 1/1"), ("sleep", "ねる 1/2"), ("happy", "よろこぶ 1/2")]
+    # コマの並びは chara.FRAMES が持つ（tools/pipeline が焼く 11 枚と同じもの）。
+    LABEL = {"idle": "立つ", "walk": "歩く", "sit": "すわる", "sleep": "ねる", "happy": "よろこぶ"}
     poserow = ""
-    for pose, lab in poses:
-        poserow += ('<div style="display:flex;flex-direction:column;align-items:center;gap:9px;">'
-                    + chara.svg("piyo", pose, 108, 153)
-                    + '<span style="font-size:12px;color:' + MUT + ';">' + lab + '</span></div>')
+    for pose, frames in chara.FRAMES:
+        for i, frame in enumerate(frames):
+            lab = "%s %d/%d" % (LABEL[pose], i + 1, len(frames))
+            poserow += ('<div style="display:flex;flex-direction:column;align-items:center;gap:9px;">'
+                        + chara.svg("piyo", frame, 78, 108)
+                        + '<span style="font-size:11px;color:' + MUT + ';">' + lab + '</span></div>')
     smalls = ""
     for lab, sz in [("40pt", 40), ("28pt", 28), ("20pt", 20)]:
         cells = "".join('<div style="width:' + str(sz + 14) + 'px;height:' + str(sz + 14) + 'px;background:#fff;'

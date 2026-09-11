@@ -123,3 +123,22 @@ def zzz(x, y, s=1.0, col="#FFFFFF"):
         o += ('<text x="%g" y="%g" font-family="DotGothic16, monospace" font-size="%g" fill="%s" opacity="%g">z</text>'
               % (x+dx*s, y+dy*s, 26*sc*s, col, 0.95-i*0.18))
     return o
+
+def ball(cx, base, r=26):
+    """ボール（Phase 4 のアイテム）。転がして追いかける用。"""
+    return ('<circle cx="%g" cy="%g" r="%g" fill="#F2A65A" stroke="%s" stroke-width="5"/>'
+            '<path d="M%g %g Q%g %g %g %g" stroke="%s" stroke-width="4.5" fill="none" stroke-linecap="round"/>'
+            '<path d="M%g %g Q%g %g %g %g" stroke="%s" stroke-width="4.5" fill="none" stroke-linecap="round"/>'
+            % (cx, base-r, r, OUT,
+               cx-r, base-r, cx, base-r*1.7, cx+r, base-r, OUT,
+               cx-r, base-r, cx, base-r*0.3, cx+r, base-r, OUT))
+
+def snack(cx, base, w=40):
+    """おやつ（Phase 4 のアイテム）。皿にのった木の実。"""
+    h = w*0.34
+    s = ('<ellipse cx="%g" cy="%g" rx="%g" ry="%g" fill="#FBF1DC" stroke="%s" stroke-width="5"/>'
+         % (cx, base-h*0.5, w*0.5, h*0.5, OUT))
+    for dx, dy, rr in [(-w*0.16, -h*0.7, w*0.15), (w*0.15, -h*0.6, w*0.13), (0, -h*1.25, w*0.14)]:
+        s += '<circle cx="%g" cy="%g" r="%g" fill="#D98F5E" stroke="%s" stroke-width="4"/>' % (
+            cx+dx, base-h*0.5+dy, rr, OUT)
+    return s
