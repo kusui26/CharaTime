@@ -24,6 +24,10 @@
 #
 set -euo pipefail
 
+# 失敗したら、どこで落ちたかを最後にはっきり出す。
+# ログの末尾だけを見て「通った」と早合点しないため。
+trap 'status=$?; [[ ${status} -ne 0 ]] && printf "\033[1;31m✗ 失敗しました（終了コード %d・%s の %d 行目）\033[0m\n" "${status}" "${BASH_SOURCE[0]}" "${LINENO}" >&2; exit ${status}' ERR
+
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${REPO_ROOT}/scripts/lib/local-env.sh"
 load_local_env "${REPO_ROOT}"
