@@ -78,6 +78,9 @@ opt_in_rules:
   - yoda_condition
 
 disabled_rules:
+  # 複数行のリテラルの末尾カンマは許す。付けておくと、項目を足したときの
+  # git の差分が 1 行で済み、レビューで見落としにくい。
+  - trailing_comma
   # 日本語のコメントは 1 行が長くなる。行の長さは line_length で見ている。
   - todo
 
