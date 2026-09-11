@@ -245,6 +245,8 @@ public enum Activity: Codable, Sendable, Equatable {
     case look(itemId: String?)
     case eat(itemId: String)
     case clockGreet
+    /// 起きた直後の伸び。
+    case happyStretch
 
     /// この行動を描くのに使う姿勢。
     public var pose: Pose {
@@ -253,7 +255,7 @@ public enum Activity: Codable, Sendable, Equatable {
         case .wander:                 .walk
         case .idle, .clockGreet:      .idle
         case .sit:                    .sit
-        case .dance, .play:           .happy
+        case .dance, .play, .happyStretch: .happy
         case .look:                   .lookUp
         case .eat:                    .idle
         }
