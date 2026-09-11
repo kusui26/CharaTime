@@ -14,17 +14,18 @@ au ガラケー時代の待受サービス「ケータイパートナー（β版
 
 ## いまの状態
 
-<img src="docs/images/skeleton.png" width="200" align="right" alt="骨組みの自己診断画面">
+**Phase 1（待受モード）**。キャラクターが部屋で自律的に暮らすところまで動いています。
 
-**Phase 0（骨組み）**。パッケージ構成と検証ループが通ったところです。
-アプリが実際に表示するのは、右の自己診断画面だけです。
-キャラクターの描画と日課エンジンはこれから実装します。
+![待受モード](docs/images/standby.png)
 
-- `swift test` 63 件が 0.05 秒で通る
-- シミュレータで App Group への状態保存まで確認済み
-- アプリとウィジェット拡張がビルドでき、1 コマンドでスクリーンショットまで回る
+> 実際に動いている画面です。左から、就寝中、朝のひと休み、毎正時の時報、夜の散歩。
+> 時刻はデバッグ用に固定して撮っています。
 
-<br clear="right">
+- **日課エンジン**が日付と種から一日の予定を組み、時刻を渡すと「そのときの姿」を返す
+- どの時刻を引いても同じ答えになるので、**ウィジェットで見た姿とアプリを開いた姿が一致する**
+- 11 枚の絵に、呼吸・弾み・首のかしげを**時刻の関数**として足して動かす
+- 22 時から夜モード。時計・日付・電池はガラケー風とすっきりの 2 種
+- `swift test` 141 件が数秒で通る
 
 ## 考えていること
 
@@ -65,11 +66,14 @@ scripts/    検証ループ
 ## 動かす
 
 ```bash
-scripts/ios-loop.sh              # 生成 → テスト → ビルド → 起動 → スクリーンショット
-scripts/ios-loop.sh --test-only  # パッケージのテストだけ（いちばん軽い）
+scripts/check.sh                 # lint → 警告ゼロのビルド → テスト（いちばん軽い）
+scripts/ios-loop.sh              # 上記 → 生成 → ビルド → 起動 → スクリーンショット
+scripts/ios-loop.sh --time 20:30 # その時刻の姿を撮る
+scripts/shots.sh 07:10 12:30 20:45   # 時刻を変えながら何枚か撮る（ビルドしない）
+python3 tools/pipeline/pipeline.py   # design/ の SVG から絵を焼き直す
 ```
 
-必要なもの: Xcode 26.6 以降、`brew install xcodegen xcbeautify`。
+必要なもの: Xcode 26.6 以降、`brew install xcodegen xcbeautify swiftlint`。
 `.xcodeproj` は生成物なので追跡していません。`xcodegen generate` で作られます。
 
 ## 読むもの
