@@ -7,8 +7,8 @@ import CTRender
 struct CharaTimeApp: App {
     var body: some Scene {
         WindowGroup {
-            // Phase 1 で待受モードに置き換わる。いまは骨組みの自己診断だけ。
-            SkeletonView()
+            // 面 0・待受モード。このアプリの核（プラン §4.3）。
+            StandbyScreen()
         }
     }
 }
