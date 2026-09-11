@@ -4,23 +4,39 @@ import CTStore
 
 /// 待受モードから開ける画面。
 public enum StandbySheet: String, Identifiable, Sendable, CaseIterable {
-    case settings
+    case room
     case dayPlan
+    case settings
 
     public var id: String { rawValue }
 
-    var title: String {
+    public var title: String {
         switch self {
-        case .settings: "設定"
+        case .room: "へや"
         case .dayPlan: "きょうの予定"
+        case .settings: "設定"
         }
     }
 
     var symbol: String {
         switch self {
-        case .settings: "gearshape"
+        case .room: "photo.on.rectangle"
         case .dayPlan: "list.bullet"
+        case .settings: "gearshape"
         }
+    }
+
+    /// 起動と同時に開く画面。**確認のためだけの仕掛け**で、`-CTTime` と同じ考え方。
+    ///
+    ///     -CTScreen room     へやを選ぶ画面を開いて起動する
+    ///
+    /// これが無いと、スクリーンショットで確かめられるのは待受モードの画面だけになる。
+    public static func initial(from arguments: [String]) -> StandbySheet? {
+        guard let index = arguments.firstIndex(of: "-CTScreen"),
+              arguments.index(after: index) < arguments.endIndex else { return nil }
+        let name = arguments[arguments.index(after: index)]
+        // `band` は「へや」の中の帯を直す画面。開くのは同じ画面なので room に読み替える。
+        return StandbySheet(rawValue: name == "band" ? "room" : name)
     }
 }
 

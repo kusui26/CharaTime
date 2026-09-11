@@ -18,20 +18,25 @@ public struct StandbyView: View {
     /// 確認のために時刻をずらす仕組み。ふだんは `.real`。
     public let timeWarp: TimeWarp
 
+    /// 開いている画面。**中身は本体アプリが出す**（写真アプリを開く画面など、
+    /// ウィジェット拡張と共有できないものが混ざるため）。
+    @Binding public var sheet: StandbySheet?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var plans = DayPlanCache()
     @State private var showsControls = false
-    @State private var sheet: StandbySheet?
     @State private var isResting = false
 
     public init(input: WorldInput, world: SceneWorld,
                 settings: CTStore.Settings = CTStore.Settings(),
-                battery: BatteryReading? = nil, timeWarp: TimeWarp = .real) {
+                battery: BatteryReading? = nil, timeWarp: TimeWarp = .real,
+                sheet: Binding<StandbySheet?>) {
         self.input = input
         self.world = world
         self.settings = settings
         self.battery = battery
         self.timeWarp = timeWarp
+        _sheet = sheet
     }
 
     /// 動いているときは画面のリフレッシュレートまで、止まっているときは 30fps に落とす
@@ -64,7 +69,6 @@ public struct StandbyView: View {
         .background(Color.black)
         .contentShape(Rectangle())
         .onTapGesture { revealControls() }
-        .sheet(item: $sheet) { StandbySheetView(kind: $0, input: input, settings: settings) }
     }
 
     private func sceneState(at date: Date) -> SceneState {
@@ -78,11 +82,41 @@ public struct StandbyView: View {
         return NightMode.isNight(hour: input.calendar.component(.hour, from: date))
     }
 
+    /// 画面のいちばん上から時計までの余白（図形で描く部屋のとき。画面の高さに対する比）。
+    ///
+    /// **Dynamic Island の下に来る値にしてある。** 時計は画面の外枠を無視して置くので、
+    /// 安全領域ぶんをここで見込まないと、数字の上が島に隠れる。
+    private static let clockTopRatio: Double = 0.105
+    /// 取り込んだ画像のとき、時計と歩ける帯のあいだに空ける高さ。
+    private static let clockBandGap: Double = 26
+
+    /// 時計。
+    ///
+    /// 図形で描く部屋では画面の上に置く（ガラケー待受の顔）。
+    /// **取り込んだ画像では、歩ける帯のすぐ上に置く。** 画面の上にはアイコンや
+    /// 空が来ることが多く、そこに大きな数字を重ねると互いに読めなくなる。
+    /// 帯の上はユーザーが「床ではない」と決めた場所なので、いちばん空いている。
     private func clock(palette: RoomPalette, at date: Date) -> some View {
-        ClockView(date: date, style: settings.clockStyle, palette: palette,
-                  battery: battery, calendar: input.calendar)
-            .padding(.top, 54)
-            .frame(maxHeight: .infinity, alignment: .top)
+        GeometryReader { geometry in
+            let face = ClockView(
+                date: date, style: settings.clockStyle,
+                palette: world.backdrop.isPicture ? palette.overPicture() : palette,
+                battery: battery, calendar: input.calendar,
+                referenceHeight: geometry.size.height)
+            if world.backdrop.isPicture {
+                // 帯のすぐ上に、中身の大きさぴったりの板を敷いて置く。
+                let bottom = geometry.size.height * world.room.floor.minY - Self.clockBandGap
+                ClockPlate { face }
+                    .fixedSize()
+                    .frame(width: geometry.size.width,
+                           height: Swift.max(160, bottom), alignment: .bottom)
+            } else {
+                face.frame(maxWidth: .infinity)
+                    .padding(.top, geometry.size.height * Self.clockTopRatio)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .ignoresSafeArea()
     }
 
     private func revealControls() {
@@ -102,11 +136,16 @@ public struct StandbyView: View {
 final class DayPlanCache {
 
     private var cached: DayPlan?
+    /// 表を作ったときの入力の指紋。**部屋を模様替えすると日課も変わる**ので、
+    /// 日付だけでなく入力そのものが変わったかも見る。
+    private var fingerprint: UInt64?
 
     func plan(for day: DayKey, input: WorldInput) -> DayPlan {
-        if let cached, cached.day == day { return cached }
+        let current = input.fingerprint
+        if let cached, cached.day == day, fingerprint == current { return cached }
         let fresh = DayPlan.make(for: day, input: input)
         cached = fresh
+        fingerprint = current
         return fresh
     }
 }

@@ -13,14 +13,21 @@ public struct ClockView: View {
     public let palette: RoomPalette
     public let battery: BatteryReading?
     public let calendar: Calendar
+    /// 文字の大きさを決めるもとになる高さ。**ふつうは画面の高さを渡す。**
+    ///
+    /// 自分に与えられた枠から決めると、板の中や小さな枠に入れたときに
+    /// 文字まで一緒に縮んでしまう。大きさの基準は外から渡す。
+    public let referenceHeight: Double
 
     public init(date: Date, style: ClockStyle, palette: RoomPalette,
-                battery: BatteryReading? = nil, calendar: Calendar = .current) {
+                battery: BatteryReading? = nil, calendar: Calendar = .current,
+                referenceHeight: Double) {
         self.date = date
         self.style = style
         self.palette = palette
         self.battery = battery
         self.calendar = calendar
+        self.referenceHeight = referenceHeight
     }
 
     /// 画面の高さに対する数字の大きさ。
@@ -30,19 +37,16 @@ public struct ClockView: View {
     private static let batterySizeRatio: Double = 0.0145
 
     public var body: some View {
-        GeometryReader { geometry in
-            let height = geometry.size.height
-            VStack(spacing: height * 0.016) {
-                time(height: height)
-                Text(ClockFormat.date(date, calendar: calendar))
-                    .font(.system(size: height * Self.dateSizeRatio, weight: .medium,
-                                  design: .rounded))
-                    .tracking(height * 0.004)
-                    .foregroundStyle(palette.clockInk.opacity(0.80))
-                // 読めないときは出さない。「--%」は電池切れと紛らわしい。
-                if let battery, battery.level != nil { batteryLine(battery, height: height) }
-            }
-            .frame(maxWidth: .infinity)
+        let height = referenceHeight
+        return VStack(spacing: height * 0.016) {
+            time(height: height)
+            Text(ClockFormat.date(date, calendar: calendar))
+                .font(.system(size: height * Self.dateSizeRatio, weight: .medium,
+                              design: .rounded))
+                .tracking(height * 0.004)
+                .foregroundStyle(palette.clockInk.opacity(0.80))
+            // 読めないときは出さない。「--%」は電池切れと紛らわしい。
+            if let battery, battery.level != nil { batteryLine(battery, height: height) }
         }
         .allowsHitTesting(false)
     }

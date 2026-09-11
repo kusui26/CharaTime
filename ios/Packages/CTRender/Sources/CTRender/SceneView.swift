@@ -35,9 +35,8 @@ public struct SceneView: View {
             let parts = ItemOrder.split(world.room.items, character: state.position,
                                         definitions: world.definitions)
             ZStack {
-                RoomView(floor: world.room.floor, palette: palette,
-                         showsWindow: world.showsWindow, showsRug: world.showsRug,
-                         isNight: isNight)
+                BackdropView(backdrop: world.backdrop, floor: world.room.floor,
+                             palette: palette, isNight: isNight)
                 layer(parts.behind, layout: layout)
                 ShadowView(state: state, layout: layout, flourish: flourish,
                            characterScale: world.character.scale)
@@ -83,28 +82,26 @@ public struct SceneWorld: Sendable {
     public var room: Room
     public var definitions: [ItemKind: ItemDefinition]
     public var spriteGeometry: SpriteGeometry
-    public var showsWindow: Bool
-    public var showsRug: Bool
+    /// 背景の出どころ。
+    public var backdrop: RoomBackdrop
 
     public init(character: CTCore.Character, room: Room,
                 definitions: [ItemKind: ItemDefinition],
                 spriteGeometry: SpriteGeometry = .fallback,
-                showsWindow: Bool = true, showsRug: Bool = true) {
+                backdrop: RoomBackdrop = .drawn()) {
         self.character = character
         self.room = room
         self.definitions = definitions
         self.spriteGeometry = spriteGeometry
-        self.showsWindow = showsWindow
-        self.showsRug = showsRug
+        self.backdrop = backdrop
     }
 
     /// 同梱データから組み立てる。読めない項目は既定値で埋める（落とさないため）。
     public static func bundled(character: CTCore.Character, room: Room,
-                               showsWindow: Bool = true, showsRug: Bool = true) -> SceneWorld {
+                               backdrop: RoomBackdrop = .drawn()) -> SceneWorld {
         let definitions = Dictionary(Catalog.itemsOrEmpty().map { ($0.kind, $0) },
                                      uniquingKeysWith: { first, _ in first })
         return SceneWorld(character: character, room: room, definitions: definitions,
-                          spriteGeometry: Catalog.spriteGeometry(),
-                          showsWindow: showsWindow, showsRug: showsRug)
+                          spriteGeometry: Catalog.spriteGeometry(), backdrop: backdrop)
     }
 }

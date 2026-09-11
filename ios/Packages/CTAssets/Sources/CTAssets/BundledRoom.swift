@@ -13,10 +13,16 @@ public enum BundledRoom {
     /// 上辺が壁と床の境目になる。
     ///
     /// **左右は画面の端まで使わない。** 絵は足元を中心に置くので、端まで歩かせると
-    /// 体の半分が画面の外へ出る。キャラの体は絵の幅のおよそ 8 割、絵の幅は画面の
-    /// 高さの 0.28 × 0.72 なので、体の半分はおよそ画面の幅の 0.17 にあたる。
-    /// その分を左右に残してある。
-    public static let floor = RoomRect(x: 0.17, y: 0.66, width: 0.66, height: 0.20)
+    /// 体の半分が画面の外へ出る。
+    ///
+    /// 必要な余白は画面の縦横比で決まる（`SceneLayout.safeHorizontalInset`）。
+    /// キャラの背は画面の高さの 0.28、絵の幅は背の 0.72、体は絵の幅の 0.8 なので、
+    /// 体の半分は画面の幅の `0.28 × (高さ ÷ 幅) × 0.72 × 0.8 ÷ 2`。
+    /// いまの iPhone でいちばん縦長の 2.18 でも 0.177 なので、0.18 残せば足りる。
+    public static let horizontalInset: Double = 0.18
+
+    public static let floor = RoomRect(x: horizontalInset, y: 0.66,
+                                       width: 1 - horizontalInset * 2, height: 0.20)
 
     public static let room = Room(
         background: .bundled("room-a"),

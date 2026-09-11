@@ -49,6 +49,41 @@ public struct RoomPalette: Sendable, Equatable {
         outline: Color(hex: 0x3B2B2B), clockInk: Color(hex: 0xFFF4DC))
 
     public static func forNight(_ isNight: Bool) -> RoomPalette { isNight ? .night : .day }
+
+    /// 取り込んだ画像の上に置くときの配色。
+    ///
+    /// **写真やホーム画面の明るさは分からない。** 昼の配色の濃い文字だと暗い写真の上で
+    /// 消えるので、文字は淡い色に固定して、後ろに薄い覆いを敷いて読ませる。
+    public func overPicture() -> RoomPalette {
+        var palette = self
+        palette.clockInk = Color(hex: 0xFFF4DC)
+        return palette
+    }
+}
+
+/// 取り込んだ画像の上で時計を読ませるための下敷き。
+///
+/// アイコンや風景の上に文字を置くと、その写真によって読めたり読めなかったりする。
+/// **画面の上半分を一様に暗くするのではなく、文字の後ろだけに敷く。**
+/// 一様に暗くすると、せっかく選んだ写真やアイコンまで沈んでしまう。
+struct ClockPlate<Content: View>: View {
+
+    @ViewBuilder let content: Content
+
+    private static var cornerRadius: Double { 26 }
+
+    var body: some View {
+        content
+            .padding(.horizontal, 22)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+                    .fill(.black.opacity(0.26))
+                    .background(
+                        RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)))
+            .allowsHitTesting(false)
+    }
 }
 
 /// 夜モードに入る時刻（プラン §4.4「22 時以降は自動で暗く」）。
