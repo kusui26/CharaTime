@@ -1,0 +1,51 @@
+Copyright (c) 2026 kusui26
+
+All rights reserved. / 全権利を留保します。
+
+--------------------------------------------------------------------------
+日本語
+--------------------------------------------------------------------------
+
+このリポジトリに含まれるすべてのもの（ソースコード、キャラクターのデザインと
+その生成スクリプト、ドキュメント、調査報告、画像）の著作権は著作者に帰属します。
+
+**いかなるライセンスも許諾していません。**
+
+したがって、複製・改変・再配布・商用利用はできません。ただし GitHub の利用規約が
+利用者に認める範囲（このリポジトリの閲覧とフォーク）はこの限りではありません。
+
+公開しているのは、個人開発の過程を見られる形にしておきたいからであって、
+自由に使ってよいという意味ではありません。利用をご希望の場合は、このリポジトリの
+Issues でご相談ください。
+
+キャラクター（ピヨ・モチ・クマオ・フワ・チップ）とその画風は、既存のキャラクターの
+識別要素を使わずに制作したオリジナルです。
+
+docs/research/ の調査報告には、Apple・KDDI・NTT ドコモ・OpenAI・Google・文化庁などの
+公開文書からの引用と、その出典 URL が含まれます。引用部分の権利は各権利者に帰属します。
+
+--------------------------------------------------------------------------
+English
+--------------------------------------------------------------------------
+
+All rights to the contents of this repository are reserved by the author. This
+includes the source code, the character designs and the scripts that generate
+them, the documentation, the research reports, and the images.
+
+**No license is granted.**
+
+You may not copy, modify, redistribute, or use any of it commercially, except
+as permitted to you by the GitHub Terms of Service (viewing and forking this
+repository).
+
+This repository is public so that the process of building the project can be
+read, not because the contents are free to use. To request permission, please
+open an issue in this repository.
+
+The characters and their visual style are original works, created without using
+the identifying elements of any existing character.
+
+The research reports under docs/research/ quote publicly available documents
+from Apple, KDDI, NTT DOCOMO, OpenAI, Google, the Japanese Agency for Cultural
+Affairs and others, with their source URLs. Rights to those quoted passages
+remain with their respective holders.
