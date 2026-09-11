@@ -249,6 +249,14 @@ public enum Activity: Codable, Sendable, Equatable {
     case happyStretch
 
     /// この行動を描くのに使う姿勢。
+    /// 眠っているか。描く側も「動かさない」判断にこれを使う。
+    public var isAsleep: Bool {
+        switch self {
+        case .sleep, .nap: true
+        default: false
+        }
+    }
+
     public var pose: Pose {
         switch self {
         case .sleep, .nap:            .sleep
@@ -272,15 +280,19 @@ public struct SceneState: Sendable, Equatable {
     /// 姿勢の何コマ目か。
     public var frame: Int
     public var bubble: Bubble?
+    /// 絵を足さずに動きを足すための味付け（呼吸・弾み・首のかしげ）。
+    public var flourish: Flourish
 
     public init(time: Date, activity: Activity, position: RoomPoint,
-                facing: Facing, frame: Int, bubble: Bubble? = nil) {
+                facing: Facing, frame: Int, bubble: Bubble? = nil,
+                flourish: Flourish = .still) {
         self.time = time
         self.activity = activity
         self.position = position
         self.facing = facing
         self.frame = frame
         self.bubble = bubble
+        self.flourish = flourish
     }
 
     /// 割り込みで行動を差し替える。

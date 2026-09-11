@@ -1,0 +1,56 @@
+import SwiftUI
+import CTCore
+import CTAssets
+
+/// 部屋に置いたアイテム 1 つ。
+struct ItemView: View {
+
+    let item: PlacedItem
+    let definition: ItemDefinition
+    let layout: SceneLayout
+    let palette: RoomPalette
+
+    /// 吊るす紐の太さ。
+    private static let cordWidth: Double = 3
+
+    var body: some View {
+        let frame = layout.itemFrame(item, definition: definition)
+        ZStack {
+            if definition.hangsFromCeiling { cord(to: frame) }
+            SpriteView(assetName: definition.assetName)
+                .frame(width: frame.width, height: frame.height)
+                .position(x: frame.midX, y: frame.midY)
+        }
+    }
+
+    /// 天井から絵まで引く紐。アイテムの絵には紐を含めていないので、
+    /// 置く高さが変わっても長さが合う。
+    private func cord(to frame: CGRect) -> some View {
+        let ends = layout.cord(for: frame)
+        return Path { path in
+            path.move(to: ends.from)
+            path.addLine(to: ends.to)
+        }
+        .stroke(palette.outline, style: StrokeStyle(lineWidth: Self.cordWidth, lineCap: .round))
+    }
+}
+
+/// アイテムを奥と手前に振り分ける。
+///
+/// 画面の下にあるものほど手前にある（プラン §7.5 の「y でソート」）。
+/// キャラより下にあるアイテムは、キャラを隠す位置に描く。
+struct ItemLayer: View {
+
+    let items: [PlacedItem]
+    let definitions: [ItemKind: ItemDefinition]
+    let layout: SceneLayout
+    let palette: RoomPalette
+
+    var body: some View {
+        ForEach(items) { item in
+            if let definition = definitions[item.kind] {
+                ItemView(item: item, definition: definition, layout: layout, palette: palette)
+            }
+        }
+    }
+}

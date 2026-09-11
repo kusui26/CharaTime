@@ -180,9 +180,23 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 
 ## 7. いま立っている場所
 
-Phase 0（〜9/20）。骨組みは通りました。次は **ウィジェット疑似アニメの実機スパイク**
-（プラン §9 Phase 0 の 0-9〜0-11、D-11）。判定が出るまで
-`Settings.widgetPseudoAnimation` は切のままにしておきます。
+**待受モード（面 0）が動いています。** 日課エンジンが返す姿を `SceneView` が描き、
+`ProceduralMotion` が呼吸と弾みを足し、時計と夜モードが乗っています（プラン §9 Phase 1）。
 
-アセットは併走方針: Phase 0〜1 は `design/` の SVG から書き出した PNG で動かし、
+次の山は 2 つ。**ウィジェット疑似アニメの実機スパイク**（§9 Phase 0 の 0-9〜0-11、D-11。
+判定が出るまで `Settings.widgetPseudoAnimation` は切のまま）と、
+**部屋 3 系統**（同梱イラスト・写真・ホーム画面スクショ、1-4）。
+
+アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
+
+**見た目を直すときの回し方**:
+
+```bash
+python3 tools/pipeline/pipeline.py        # 絵を焼き直す（design/ を触ったとき）
+scripts/ios-loop.sh --time 20:30          # その時刻の姿を撮る
+scripts/ios-loop.sh --time 07:00 --speed 240   # 7:00 から 240 倍速で動かす
+```
+
+`.shots/latest.png` を Read すれば、自分が書いた画面を目で見て直せます。
+**時刻を変えられないと、夜中に起動したら寝ている姿しか確かめられません。**

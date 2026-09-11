@@ -19,6 +19,8 @@
 #   scripts/ios-loop.sh --skip-test            ②を飛ばす（描画だけ見たいとき）
 #   scripts/ios-loop.sh --shot-only            ⑥だけ（起動中のシミュレータを撮る）
 #   scripts/ios-loop.sh --device "iPhone 17"
+#   scripts/ios-loop.sh --time 14:30           その時刻の姿を撮る
+#   scripts/ios-loop.sh --time 07:00 --speed 240   7:00 から 240 倍速で動かす
 #
 set -euo pipefail
 
@@ -40,6 +42,9 @@ readonly BOOT_TIMEOUT_SEC=180
 readonly LAUNCH_SETTLE_SEC=5
 
 device_name="iPhone 17 Pro"
+# 確認のために時刻をずらす（プラン §9 Phase 1 の 1-5）。空なら実時刻。
+fixed_time=""
+time_speed=""
 skip_test=false
 shot_only=false
 test_only=false
@@ -59,6 +64,8 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --device)    device_name="${2:?--device には端末名が必要です}"; shift 2 ;;
+      --time)      fixed_time="${2:?--time には 14:30 のような時刻が必要です}"; shift 2 ;;
+      --speed)     time_speed="${2:?--speed には倍率が必要です}"; shift 2 ;;
       --skip-test) skip_test=true; shift ;;
       --shot-only) shot_only=true; shift ;;
       --test-only) test_only=true; shift ;;
@@ -113,8 +120,13 @@ install_and_launch() {
   run_with_timeout "${SIMCTL_TIMEOUT_SEC}" \
     xcrun simctl install "${device_name}" "${APP_PATH}" \
     || die "アプリをインストールできませんでした"
+  # 時刻を固定・早送りするときは、実行引数でアプリに渡す。
+  local launch_args=()
+  [[ -n "${fixed_time}" ]] && launch_args+=(-CTTime "${fixed_time}")
+  [[ -n "${time_speed}" ]] && launch_args+=(-CTSpeed "${time_speed}")
   if ! run_with_timeout "${SIMCTL_TIMEOUT_SEC}" \
-      xcrun simctl launch "${device_name}" "${BUNDLE_ID}" >/dev/null; then
+      xcrun simctl launch "${device_name}" "${BUNDLE_ID}" "${launch_args[@]+"${launch_args[@]}"}" \
+      >/dev/null; then
     warn "launch が時間内に返りませんでした。起動はしている可能性が高いので続行します。"
   fi
   # 起動直後は描画が終わっていない。待たないと真っ黒な画像になる。

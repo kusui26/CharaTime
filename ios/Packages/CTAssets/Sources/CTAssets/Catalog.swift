@@ -1,6 +1,33 @@
 import Foundation
 import CTCore
 
+/// キャラの絵の枠。`tools/pipeline` が焼いた PNG の形をそのまま持つ。
+///
+/// 絵は姿勢ごとに同じ枠で焼いてあり、余白を詰めていない。詰めると姿勢ごとに
+/// 原点がずれ、コマを送るたびにキャラが跳ねて見えるため。
+public struct SpriteGeometry: Codable, Sendable, Equatable {
+    /// 絵の縦横比（幅 ÷ 高さ）。
+    public var aspectRatio: Double
+    /// 絵の上端から接地線までの割合。**足元を床に合わせるのに使う。**
+    public var groundRatio: Double
+
+    public init(aspectRatio: Double, groundRatio: Double) {
+        self.aspectRatio = aspectRatio
+        self.groundRatio = groundRatio
+    }
+
+    /// JSON に書かれていないときの値（パイプラインの既定と同じ）。
+    public static let fallback = SpriteGeometry(aspectRatio: 0.7222, groundRatio: 0.9333)
+}
+
+/// 画像が入っているバンドル。
+///
+/// `Bundle.module` はターゲットの中からしか見えないので、絵を描く CTRender に
+/// 渡せるようにここで公開する。
+public enum AssetBundle {
+    public static let value = Bundle.module
+}
+
 /// 同梱データの読み出し口。
 ///
 /// `characters.json` と `items.json` は **アプリ・ウィジェット・Python の
@@ -32,6 +59,17 @@ public enum Catalog {
         try decode(ItemCatalog.self, from: "items").items
     }
 
+    /// 読めなければ空を返す版。
+    public static func itemsOrEmpty() -> [ItemDefinition] {
+        (try? items()) ?? []
+    }
+
+    /// キャラの絵の枠。読めなければ既定値を返す（ウィジェットで落とさないため）。
+    public static func spriteGeometry() -> SpriteGeometry {
+        (try? decode(CharacterCatalog.self, from: "characters").spriteGeometry)
+            ?? .fallback
+    }
+
     /// 読めなければ空を返す版。ウィジェットのように落ちてはいけない場所で使う。
     public static func charactersOrEmpty() -> [CTCore.Character] {
         (try? characters()) ?? []
@@ -54,6 +92,7 @@ public enum Catalog {
 struct CharacterCatalog: Decodable {
     var schemaVersion: Int
     var characters: [CTCore.Character]
+    var spriteGeometry: SpriteGeometry?
 }
 
 struct ItemCatalog: Decodable {
@@ -68,6 +107,8 @@ public struct ItemDefinition: Codable, Sendable, Equatable, Identifiable {
     public var displayName: String
     /// アセット名。画像は tools/pipeline が書き出す。
     public var assetName: String
+    /// 絵の縦横比（幅 ÷ 高さ）。アプリは幅だけを決めて置くので、高さをこれで出す。
+    public var aspectRatio: Double
     /// 床の幅に対する大きさの比。
     public var widthRatio: Double
     /// キャラがこのアイテムを使うときに立つ位置（アイテム中心からの相対、正規化座標）。
@@ -76,13 +117,15 @@ public struct ItemDefinition: Codable, Sendable, Equatable, Identifiable {
     public var hangsFromCeiling: Bool
 
     public init(id: String, kind: ItemKind, displayName: String, assetName: String,
-                widthRatio: Double, anchorOffset: RoomPoint, hangsFromCeiling: Bool = false) {
+                widthRatio: Double, anchorOffset: RoomPoint, aspectRatio: Double = 1,
+                hangsFromCeiling: Bool = false) {
         self.id = id
         self.kind = kind
         self.displayName = displayName
         self.assetName = assetName
         self.widthRatio = widthRatio
         self.anchorOffset = anchorOffset
+        self.aspectRatio = aspectRatio
         self.hangsFromCeiling = hangsFromCeiling
     }
 
@@ -93,6 +136,7 @@ public struct ItemDefinition: Codable, Sendable, Equatable, Identifiable {
         displayName = try box.decode(String.self, forKey: .displayName)
         assetName = try box.decode(String.self, forKey: .assetName)
         widthRatio = try box.decodeIfPresent(Double.self, forKey: .widthRatio) ?? 0.2
+        aspectRatio = try box.decodeIfPresent(Double.self, forKey: .aspectRatio) ?? 1
         anchorOffset = try box.decodeIfPresent(RoomPoint.self, forKey: .anchorOffset) ?? .zero
         hangsFromCeiling = try box.decodeIfPresent(Bool.self, forKey: .hangsFromCeiling) ?? false
     }

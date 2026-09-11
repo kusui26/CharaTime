@@ -47,10 +47,27 @@ public struct AppState: Codable, Sendable, Equatable {
     }
 }
 
+/// 待受モードの時計の見た目（プラン §9 Phase 1 の 1-3、Q-5）。
+public enum ClockStyle: String, Codable, Sendable, CaseIterable {
+    /// ガラケー風の大きな数字。既定。
+    case retro
+    /// 細身で控えめ。部屋の絵を主役にしたいとき。
+    case modern
+
+    public var displayName: String {
+        switch self {
+        case .retro: "ガラケー風"
+        case .modern: "すっきり"
+        }
+    }
+}
+
 public struct Settings: Codable, Sendable, Equatable {
 
     /// 待受モードに時計を出すか。ガラケー待受の再現なので既定は出す。
     public var showsClock: Bool
+    /// 時計の見た目。
+    public var clockStyle: ClockStyle
     /// 夜は画面を暗くするか。
     public var nightMode: Bool
     /// 音。当時の「消せない BGM」への不満を踏まえて既定は切（プラン §2.5）。
@@ -59,10 +76,12 @@ public struct Settings: Codable, Sendable, Equatable {
     public var widgetPseudoAnimation: Bool
 
     public init(showsClock: Bool = true,
+                clockStyle: ClockStyle = .retro,
                 nightMode: Bool = true,
                 soundEnabled: Bool = false,
                 widgetPseudoAnimation: Bool = false) {
         self.showsClock = showsClock
+        self.clockStyle = clockStyle
         self.nightMode = nightMode
         self.soundEnabled = soundEnabled
         self.widgetPseudoAnimation = widgetPseudoAnimation
@@ -71,6 +90,7 @@ public struct Settings: Codable, Sendable, Equatable {
     public init(from decoder: any Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         showsClock = try box.decodeIfPresent(Bool.self, forKey: .showsClock) ?? true
+        clockStyle = try box.decodeIfPresent(ClockStyle.self, forKey: .clockStyle) ?? .retro
         nightMode = try box.decodeIfPresent(Bool.self, forKey: .nightMode) ?? true
         soundEnabled = try box.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? false
         widgetPseudoAnimation = try box.decodeIfPresent(Bool.self, forKey: .widgetPseudoAnimation) ?? false

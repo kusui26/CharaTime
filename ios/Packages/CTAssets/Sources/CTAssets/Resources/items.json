@@ -1,90 +1,97 @@
 {
   "_note": "部屋に置けるもの。widthRatio は床の幅に対する比、anchorOffset はキャラが立つ位置（アイテム中心からの相対）",
-  "schemaVersion": 1,
   "items": [
     {
-      "id": "mirror-ball",
-      "kind": "mirrorBall",
-      "displayName": "ミラーボール",
-      "assetName": "item_mirror_ball",
-      "widthRatio": 0.18,
       "anchorOffset": {
         "x": 0.0,
         "y": 0.3
       },
-      "hangsFromCeiling": true
+      "aspectRatio": 1.0,
+      "assetName": "item_mirror_ball",
+      "displayName": "ミラーボール",
+      "hangsFromCeiling": true,
+      "id": "mirror-ball",
+      "kind": "mirrorBall",
+      "widthRatio": 0.18
     },
     {
+      "anchorOffset": {
+        "x": 0.0,
+        "y": 0.02
+      },
+      "aspectRatio": 1.8293,
+      "assetName": "item_cushion",
+      "displayName": "クッション",
+      "hangsFromCeiling": false,
       "id": "cushion",
       "kind": "cushion",
-      "displayName": "クッション",
-      "assetName": "item_cushion",
-      "widthRatio": 0.2,
+      "widthRatio": 0.24
+    },
+    {
       "anchorOffset": {
         "x": 0.0,
         "y": 0.02
       },
-      "hangsFromCeiling": false
-    },
-    {
+      "aspectRatio": 1.4615,
+      "assetName": "item_bed",
+      "displayName": "ベッド",
+      "hangsFromCeiling": false,
       "id": "bed",
       "kind": "bed",
-      "displayName": "ベッド",
-      "assetName": "item_bed",
-      "widthRatio": 0.34,
-      "anchorOffset": {
-        "x": 0.0,
-        "y": 0.02
-      },
-      "hangsFromCeiling": false
+      "widthRatio": 0.52
     },
     {
-      "id": "plant",
-      "kind": "plant",
-      "displayName": "観葉植物",
-      "assetName": "item_plant",
-      "widthRatio": 0.16,
       "anchorOffset": {
         "x": 0.1,
         "y": 0.02
       },
-      "hangsFromCeiling": false
+      "aspectRatio": 0.875,
+      "assetName": "item_plant",
+      "displayName": "観葉植物",
+      "hangsFromCeiling": false,
+      "id": "plant",
+      "kind": "plant",
+      "widthRatio": 0.24
     },
     {
-      "id": "desk-clock",
-      "kind": "deskClock",
-      "displayName": "置き時計",
-      "assetName": "item_desk_clock",
-      "widthRatio": 0.12,
       "anchorOffset": {
         "x": 0.0,
         "y": 0.06
       },
-      "hangsFromCeiling": false
+      "aspectRatio": 1.0,
+      "assetName": "item_desk_clock",
+      "displayName": "置き時計",
+      "hangsFromCeiling": false,
+      "id": "desk-clock",
+      "kind": "deskClock",
+      "widthRatio": 0.16
     },
     {
-      "id": "ball",
-      "kind": "ball",
-      "displayName": "ボール",
-      "assetName": "item_ball",
-      "widthRatio": 0.08,
       "anchorOffset": {
         "x": 0.0,
         "y": 0.0
       },
-      "hangsFromCeiling": false
+      "aspectRatio": 1.0,
+      "assetName": "item_ball",
+      "displayName": "ボール",
+      "hangsFromCeiling": false,
+      "id": "ball",
+      "kind": "ball",
+      "widthRatio": 0.08
     },
     {
-      "id": "snack",
-      "kind": "snack",
-      "displayName": "おやつ",
-      "assetName": "item_snack",
-      "widthRatio": 0.1,
       "anchorOffset": {
         "x": 0.0,
         "y": 0.02
       },
-      "hangsFromCeiling": false
+      "aspectRatio": 1.5789,
+      "assetName": "item_snack",
+      "displayName": "おやつ",
+      "hangsFromCeiling": false,
+      "id": "snack",
+      "kind": "snack",
+      "widthRatio": 0.1
     }
-  ]
+  ],
+  "schemaVersion": 1
 }
