@@ -16,6 +16,10 @@
 #
 set -euo pipefail
 
+# 失敗したら、どこで落ちたかを最後にはっきり出す。
+# ログの末尾だけを見て「通った」と早合点しないため。
+trap 'status=$?; [[ ${status} -ne 0 ]] && printf "\033[1;31m✗ 失敗しました（終了コード %d・%s の %d 行目）\033[0m\n" "${status}" "${BASH_SOURCE[0]}" "${LINENO}" >&2; exit ${status}' ERR
+
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly IOS_DIR="${REPO_ROOT}/ios"
 
@@ -33,6 +37,27 @@ lint() {
   swiftlint lint --strict --quiet --config "${REPO_ROOT}/.swiftlint.yml"
   log "① lint（テスト）"
   swiftlint lint --strict --quiet --config "${REPO_ROOT}/.swiftlint-tests.yml"
+}
+
+# SwiftPM は、**依存パッケージにファイルが増えた**ことを取りこぼす。
+#
+# 増えた型を使うと「value of type 'X' has no member 'y'」という、原因から遠い形で
+# 落ちる。ファイルを直しただけなら取りこぼさないので、**顔ぶれが変わったときだけ**
+# 作り直す。顔ぶれは各パッケージの Sources のファイル一覧の指紋で見る。
+prune_stale_builds() {
+  local fingerprint marker pkg
+  fingerprint="$(find "${IOS_DIR}"/Packages/*/Sources -name '*.swift' | sort | shasum | cut -d' ' -f1)"
+  for pkg in "${IOS_DIR}"/Packages/*/; do
+    marker="${pkg}.build/.ct-sources"
+    [[ -d "${pkg}.build" ]] || continue
+    if [[ "$(cat "${marker}" 2>/dev/null)" != "${fingerprint}" ]]; then
+      rm -rf "${pkg}.build"
+      printf '   └ %s を作り直します（ファイルの顔ぶれが変わりました）\n' "$(basename "${pkg}")"
+    fi
+  done
+  for pkg in "${IOS_DIR}"/Packages/*/; do
+    mkdir -p "${pkg}.build" && printf '%s' "${fingerprint}" > "${pkg}.build/.ct-sources"
+  done
 }
 
 # 警告を 1 件でも出したら落とす。「警告は後で直す」を溜めないため。
@@ -61,6 +86,7 @@ test_packages() {
 }
 
 [[ "${run_lint}" == true ]] && lint
+prune_stale_builds
 build
 test_packages
 printf '\033[1;32m✓ 品質ゲートを通過\033[0m\n'

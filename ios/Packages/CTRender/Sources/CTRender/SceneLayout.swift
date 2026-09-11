@@ -29,6 +29,24 @@ public struct SceneLayout: Sendable, Equatable {
         self.geometry = geometry
     }
 
+    /// キャラの体が絵の幅に占める割合。
+    ///
+    /// 焼いた絵には左右に透明な余白がある（とさかや羽が切れないように四方を広げたぶん）。
+    /// 体そのものはおよそ 8 割で、はみ出してよいのは残りの余白だけ。
+    public static let bodyWidthRatio: Double = 0.8
+
+    /// 床の左右に空けるべき余白（画面の幅に対する比）。
+    ///
+    /// **絵は足元を中心に置く。** 端まで歩かせると体の半分が画面の外へ出るので、
+    /// いちばん大きく見える手前でも体が収まるだけの余白を残す。
+    public static func safeHorizontalInset(in size: CGSize, geometry: SpriteGeometry,
+                                           characterScale: Double = 1) -> Double {
+        guard size.width > 0 else { return 0 }
+        let height = size.height * characterHeightRatio * characterScale
+        let bodyWidth = height * geometry.aspectRatio * bodyWidthRatio
+        return Swift.min(0.4, bodyWidth / 2 / size.width)
+    }
+
     /// 正規化座標を画面の位置へ。
     public func point(_ position: RoomPoint) -> CGPoint {
         CGPoint(x: position.x * size.width, y: position.y * size.height)

@@ -1,4 +1,5 @@
 import Foundation
+import CTCore
 
 /// 端末に 1 つだけ持つ状態。アプリが書き、ウィジェットは読むだけ。
 ///
@@ -18,15 +19,23 @@ public struct AppState: Codable, Sendable, Equatable {
 
     public var selectedCharacterID: String
 
+    /// ユーザーが選んだ部屋。**nil は「同梱の部屋のまま」** という意味。
+    ///
+    /// 既定の部屋そのものをここに書き写さないのは、同梱の部屋を後で直したときに、
+    /// 何も選んでいない人の画面も一緒に新しくなるようにするため。
+    public var room: Room?
+
     public var settings: Settings
 
     public init(schemaVersion: Int = AppState.currentSchemaVersion,
                 userSeed: UInt64,
                 selectedCharacterID: String = "piyo",
+                room: Room? = nil,
                 settings: Settings = Settings()) {
         self.schemaVersion = schemaVersion
         self.userSeed = userSeed
         self.selectedCharacterID = selectedCharacterID
+        self.room = room
         self.settings = settings
     }
 
@@ -43,6 +52,8 @@ public struct AppState: Codable, Sendable, Equatable {
         schemaVersion = try box.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         userSeed = try box.decodeIfPresent(UInt64.self, forKey: .userSeed) ?? 0
         selectedCharacterID = try box.decodeIfPresent(String.self, forKey: .selectedCharacterID) ?? "piyo"
+        // 部屋が壊れていても、同梱の部屋に戻すだけで済ませる（画面が出ないより良い）。
+        room = try? box.decodeIfPresent(Room.self, forKey: .room)
         settings = try box.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
     }
 }

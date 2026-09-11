@@ -43,3 +43,12 @@ python3 tools/pipeline/pipeline.py --check  # 焼かずに整合だけ見る
 **出力の形（imageset の名前・倍率・接地の位置）は変えない。** 差し替えるのは入口の
 `_character_svgs` だけでよい。`verify()` が JSON と Asset Catalog の食い違いを見るので、
 差し替え漏れはそこで落ちる。
+
+## 背景（写真・ホーム画面）
+
+`design/` とは別で、ユーザーが選んだ画像は `CTStore.ImageStore` が App Group に置く。
+長辺 2800 画素で縮め、PNG にそろえる。ホーム画面のスクリーンショットはアイコンの縁が
+はっきりしているので、非可逆だと縁に滲みが出る。
+
+読み書きは ImageIO で行い、UIKit を持ち込まない。Phase 3 のウィジェット拡張でも
+同じコードが動くようにしてある。

@@ -23,10 +23,13 @@ final class StandbyModel {
     /// 確認のために時刻をずらす仕組み。実行引数で指定されたときだけ効く。
     let timeWarp = TimeWarp.fromArguments(ProcessInfo.processInfo.arguments)
 
+    /// いま使っている部屋。選んでいなければ同梱の部屋。
+    var room: Room { state.room ?? BundledRoom.room }
+
     /// 日課エンジンへの入力。文脈（電池）だけが端末の状態で変わる。
     var input: WorldInput {
         WorldInput(character: character ?? .placeholder,
-                   room: BundledRoom.room,
+                   room: room,
                    userSeed: state.userSeed,
                    context: context)
     }
@@ -61,7 +64,74 @@ final class StandbyModel {
             return
         }
         character = chosen
-        world = SceneWorld.bundled(character: chosen, room: BundledRoom.room)
+        rebuildWorld()
+    }
+
+    /// 背景を読み直して、描画に渡す一式を組み直す。
+    private func rebuildWorld() {
+        guard let character else { return }
+        world = SceneWorld.bundled(character: character, room: room, backdrop: backdrop())
+    }
+
+    /// いまの部屋の背景。画像が読めなければ同梱の部屋に落とす（画面が出ないより良い）。
+    private func backdrop() -> RoomBackdrop {
+        switch room.background {
+        case .bundled:
+            return .drawn()
+        case .photo(let fileName), .homeScreenShot(let fileName):
+            guard let image = ImageStore.shared.load(fileName) else { return .drawn() }
+            return .picture(image)
+        }
+    }
+
+    // MARK: - 部屋を選ぶ
+
+    /// 同梱の部屋に戻す。取り込んだ画像も片づける。
+    func chooseBundledRoom() {
+        save(nil)
+    }
+
+    /// 選んだ画像と帯で部屋を作り直す。
+    ///
+    /// 写真とホーム画面の部屋は **アイテム無しで始める**。人の写真の上にベッドや
+    /// ミラーボールが浮いていると、置いた覚えのないものが出てくることになる。
+    /// 置く操作は Phase 2 の配置エディタで作る。
+    func applyPicture(_ choice: RoomChoice, imageData: Data, floor: RoomRect) {
+        do {
+            // 秒までの時刻を名前にする。同じ秒に 2 枚選んでも、上書きされるのは
+            // これから捨てるほうなので困らない。
+            let name = "bg-\(Int(Date().timeIntervalSince1970))"
+            try ImageStore.shared.store(imageData, as: name)
+            save(Room(background: choice.background(imageName: name), floor: floor, items: []))
+        } catch {
+            loadFailure = String(describing: error)
+        }
+    }
+
+    /// 背景はそのままで、歩ける帯だけを直す。
+    func applyBand(_ floor: RoomRect) {
+        var updated = room
+        updated.floor = floor
+        save(updated)
+    }
+
+    /// 部屋を保存して画面に反映する。nil は「同梱の部屋のまま」。
+    private func save(_ updated: Room?) {
+        state.room = updated
+        do {
+            try StateStore.shared.save(state)
+        } catch {
+            loadFailure = String(describing: error)
+        }
+        ImageStore.shared.removeAll(keeping: imageNames(of: updated))
+        rebuildWorld()
+    }
+
+    private func imageNames(of room: Room?) -> Set<String> {
+        switch room?.background {
+        case .photo(let name), .homeScreenShot(let name): [name]
+        default: []
+        }
     }
 
     // MARK: - 端末の状態
