@@ -1,0 +1,202 @@
+{
+  "_note": "tools/pipeline が書き出す。手で編集しない。姿勢ごとのコマ数は プラン §5.3（Tier 1 = 11 枚）",
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "piyo",
+      "displayName": "ピヨ",
+      "scale": 1.0,
+      "personality": {
+        "activity": 0.9,
+        "nightOwl": 0.1,
+        "napiness": 0.2,
+        "favorites": [
+          "ball"
+        ]
+      },
+      "poses": {
+        "idle": [
+          "piyo_idle_01",
+          "piyo_idle_02"
+        ],
+        "walk": [
+          "piyo_walk_01",
+          "piyo_walk_02",
+          "piyo_walk_03",
+          "piyo_walk_04"
+        ],
+        "sit": [
+          "piyo_sit_01"
+        ],
+        "sleep": [
+          "piyo_sleep_01",
+          "piyo_sleep_02"
+        ],
+        "happy": [
+          "piyo_happy_01",
+          "piyo_happy_02"
+        ]
+      },
+      "origin": {
+        "bundled": {}
+      }
+    },
+    {
+      "id": "mochi",
+      "displayName": "モチ",
+      "scale": 0.98,
+      "personality": {
+        "activity": 0.3,
+        "nightOwl": 0.4,
+        "napiness": 0.8,
+        "favorites": [
+          "cushion"
+        ]
+      },
+      "poses": {
+        "idle": [
+          "mochi_idle_01",
+          "mochi_idle_02"
+        ],
+        "walk": [
+          "mochi_walk_01",
+          "mochi_walk_02",
+          "mochi_walk_03",
+          "mochi_walk_04"
+        ],
+        "sit": [
+          "mochi_sit_01"
+        ],
+        "sleep": [
+          "mochi_sleep_01",
+          "mochi_sleep_02"
+        ],
+        "happy": [
+          "mochi_happy_01",
+          "mochi_happy_02"
+        ]
+      },
+      "origin": {
+        "bundled": {}
+      }
+    },
+    {
+      "id": "kumao",
+      "displayName": "クマオ",
+      "scale": 1.06,
+      "personality": {
+        "activity": 0.4,
+        "nightOwl": 0.5,
+        "napiness": 0.5,
+        "favorites": [
+          "cushion",
+          "snack"
+        ]
+      },
+      "poses": {
+        "idle": [
+          "kumao_idle_01",
+          "kumao_idle_02"
+        ],
+        "walk": [
+          "kumao_walk_01",
+          "kumao_walk_02",
+          "kumao_walk_03",
+          "kumao_walk_04"
+        ],
+        "sit": [
+          "kumao_sit_01"
+        ],
+        "sleep": [
+          "kumao_sleep_01",
+          "kumao_sleep_02"
+        ],
+        "happy": [
+          "kumao_happy_01",
+          "kumao_happy_02"
+        ]
+      },
+      "origin": {
+        "bundled": {}
+      }
+    },
+    {
+      "id": "fuwa",
+      "displayName": "フワ",
+      "scale": 1.02,
+      "personality": {
+        "activity": 0.6,
+        "nightOwl": 0.9,
+        "napiness": 0.3,
+        "favorites": [
+          "mirrorBall"
+        ]
+      },
+      "poses": {
+        "idle": [
+          "fuwa_idle_01",
+          "fuwa_idle_02"
+        ],
+        "walk": [
+          "fuwa_walk_01",
+          "fuwa_walk_02",
+          "fuwa_walk_03",
+          "fuwa_walk_04"
+        ],
+        "sit": [
+          "fuwa_sit_01"
+        ],
+        "sleep": [
+          "fuwa_sleep_01",
+          "fuwa_sleep_02"
+        ],
+        "happy": [
+          "fuwa_happy_01",
+          "fuwa_happy_02"
+        ]
+      },
+      "origin": {
+        "bundled": {}
+      }
+    },
+    {
+      "id": "chip",
+      "displayName": "チップ",
+      "scale": 1.0,
+      "personality": {
+        "activity": 0.5,
+        "nightOwl": 0.35,
+        "napiness": 0.3,
+        "favorites": [
+          "deskClock"
+        ]
+      },
+      "poses": {
+        "idle": [
+          "chip_idle_01",
+          "chip_idle_02"
+        ],
+        "walk": [
+          "chip_walk_01",
+          "chip_walk_02",
+          "chip_walk_03",
+          "chip_walk_04"
+        ],
+        "sit": [
+          "chip_sit_01"
+        ],
+        "sleep": [
+          "chip_sleep_01",
+          "chip_sleep_02"
+        ],
+        "happy": [
+          "chip_happy_01",
+          "chip_happy_02"
+        ]
+      },
+      "origin": {
+        "bundled": {}
+      }
+    }
+  ]
+}

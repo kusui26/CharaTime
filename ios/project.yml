@@ -1,0 +1,108 @@
+# XcodeGen の定義。
+#
+# .xcodeproj は生成物として gitignore している。project.pbxproj は実質マージ不能な
+# テキストで、複数ブランチで触ると必ず衝突するため。構成の変更はこの YAML の差分として
+# レビューする（プラン §7.1）。
+name: CharaTime
+
+options:
+  bundleIdPrefix: app.charatime
+  deploymentTarget:
+    # 実機は iPhone 17 Pro / iOS 26.1。Phase 3 まで iOS 26 に据え置く（プラン D-15）。
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # 決定論を守るため、並行性の取りこぼしはコンパイル時に落としておきたい。
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEVELOPMENT_TEAM: ${CHARATIME_TEAM_ID}
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+
+packages:
+  CTCore:
+    path: Packages/CTCore
+  CTAssets:
+    path: Packages/CTAssets
+  CTRender:
+    path: Packages/CTRender
+  CTStore:
+    path: Packages/CTStore
+
+targets:
+
+  CharaTime:
+    type: application
+    platform: iOS
+    sources:
+      - path: CharaTime
+    dependencies:
+      - package: CTCore
+      - package: CTAssets
+      - package: CTRender
+      - package: CTStore
+      - target: CharaTimeWidgetExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.charatime
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    info:
+      path: CharaTime/Info.plist
+      properties:
+        CFBundleDisplayName: CharaTime
+        # 画面はすべて日本語。宣言しないと OS が出す文言が英語のままになる。
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations: [ja]
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # 待受モードは画面を点けたままにする。表示中だけ true に切り替える
+        # （プラン §4.4）ので、ここでは既定のままにしておく。
+    entitlements:
+      path: CharaTime/CharaTime.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.charatime
+
+  CharaTimeWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CharaTimeWidget
+    dependencies:
+      - package: CTCore
+      - package: CTAssets
+      - package: CTRender
+      - package: CTStore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.charatime.widget
+        # 拡張は約 30 MB のメモリ上限で動く。重い依存を足すときはここを思い出す
+        # （プラン §7.3）。
+    info:
+      path: CharaTimeWidget/Info.plist
+      properties:
+        CFBundleDisplayName: CharaTime
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations: [ja]
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: CharaTimeWidget/CharaTimeWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.app.charatime
+
+schemes:
+  CharaTime:
+    build:
+      targets:
+        CharaTime: all
+        CharaTimeWidgetExtension: all
+    run:
+      config: Debug

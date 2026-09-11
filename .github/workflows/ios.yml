@@ -1,0 +1,49 @@
+# iOS の品質ゲート。
+#
+# macOS ランナーは Linux の 10 倍課金されるので、ios/ を触った PR だけで動かす。
+# パッケージは iOS / macOS プラットフォームを宣言しているため Linux では走らない。
+#
+# 注意: ランナーの Xcode が 26.6 以上であることを前提にしている。GitHub 側の
+# 既定バージョンが古いときは xcode-select の行を実際の版に合わせること（未検証）。
+name: iOS
+
+on:
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: パッケージ単体テスト
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode を選ぶ
+        run: sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer || xcodebuild -version
+      - name: swift test
+        run: |
+          for pkg in ios/Packages/*/; do
+            echo "── $(basename "$pkg")"
+            swift test --package-path "$pkg"
+          done
+
+  build:
+    name: シミュレータ向けビルド
+    runs-on: macos-15
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen
+        run: brew install xcodegen xcbeautify
+      - name: プロジェクト生成
+        run: cd ios && xcodegen generate
+      - name: ビルド
+        run: |
+          xcodebuild build \
+            -project ios/CharaTime.xcodeproj \
+            -scheme CharaTime \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -derivedDataPath ios/build | xcbeautify

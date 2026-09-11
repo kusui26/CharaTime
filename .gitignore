@@ -1,0 +1,41 @@
+# Xcode
+.DS_Store
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# XcodeGen の生成物。project.pbxproj は実質マージ不能なので生成物として扱い、
+# 構成の変更は ios/project.yml の差分としてレビューする。
+*.xcodeproj/
+*.xcworkspace/
+
+# ビルド成果物
+ios/build/
+.build/
+DerivedData/
+
+# 検証ループのスクリーンショット（履歴は残さない）
+.shots/
+
+# このマシン固有の設定（署名の Team ID など）
+.env.local
+
+# デザイン作業の中間生成物。_ 始まりは確認用の使い捨て。
+design/_*
+design/__pycache__/
+# デザインキャンバスの公開用生成物（2.6 MB）。design/build.py から作り直せる。
+design/charatime-iphone-screens.html
+
+# 生成 AI の出力そのまま（正規化前）。容量が大きいので追跡しない
+assets-src/**/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# XcodeGen が project.yml から生成する。構成の変更は project.yml の差分でレビューする。
+ios/CharaTime/Info.plist
+ios/CharaTime/CharaTime.entitlements
+ios/CharaTimeWidget/Info.plist
+ios/CharaTimeWidget/CharaTimeWidget.entitlements
