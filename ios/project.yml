@@ -40,12 +40,19 @@ targets:
     platform: iOS
     sources:
       - path: CharaTime
+      # スパイクの見た目だけ本体アプリでも描けるようにする。
+      # **手元でマスクフォントが正しく効くかを先に確かめるため**で、
+      # 実機での判定（拡張が止まっていても描き直されるか）はこれでは分からない。
+      - path: CharaTimeSpikeWidget/Shared
+      - path: CharaTimeSpikeWidget/Fonts
     dependencies:
       - package: CTCore
       - package: CTAssets
       - package: CTRender
       - package: CTStore
       - target: CharaTimeWidgetExtension
+      # スパイクは判定が出たら丸ごと消す（プラン §9 Phase 0 の 0-9〜0-11）。
+      - target: CharaTimeSpikeWidgetExtension
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.charatime
@@ -61,6 +68,10 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # スパイクの確認画面（`-CTScreen spike`）で使う。判定が出たら消す。
+        UIAppFonts:
+          - CTSpikeMaskEven.ttf
+          - CTSpikeMaskOdd.ttf
         # 待受モードは画面を点けたままにする。表示中だけ true に切り替える
         # （プラン §4.4）ので、ここでは既定のままにしておく。
     entitlements:
@@ -98,11 +109,39 @@ targets:
         com.apple.security.application-groups:
           - group.app.charatime
 
+  # ウィジェット疑似アニメの実機スパイク（プラン §9 Phase 0 の 0-9〜0-11、D-11）。
+  #
+  # **本番のウィジェット拡張とは別のターゲットにする。** 拡張はターゲットごとに
+  # 別プロセスで動くので、非公式の手法を試して落ちても、本番のウィジェットは
+  # 巻き添えにならない。判定が出たらこのターゲットごと消す。
+  CharaTimeSpikeWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CharaTimeSpikeWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.charatime.spike
+    info:
+      path: CharaTimeSpikeWidget/Info.plist
+      properties:
+        CFBundleDisplayName: CharaTime スパイク
+        CFBundleDevelopmentRegion: ja
+        CFBundleLocalizations: [ja]
+        # マスクフォントを登録する。ウィジェット拡張の Info.plist で
+        # UIAppFonts が効くかどうかも、このスパイクで確かめる点のひとつ。
+        UIAppFonts:
+          - CTSpikeMaskEven.ttf
+          - CTSpikeMaskOdd.ttf
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
 schemes:
   CharaTime:
     build:
       targets:
         CharaTime: all
         CharaTimeWidgetExtension: all
+        CharaTimeSpikeWidgetExtension: all
     run:
       config: Debug
