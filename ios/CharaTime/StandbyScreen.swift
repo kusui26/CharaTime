@@ -19,9 +19,15 @@ struct StandbyScreen: View {
     private static let startsWithBandEditor =
         ProcessInfo.processInfo.arguments.contains("band")
 
+    /// `-CTScreen spike` で、スパイクの下見画面を出す（確認用）。
+    private static let showsSpikePreview =
+        ProcessInfo.processInfo.arguments.contains("spike")
+
     var body: some View {
         Group {
-            if let world = model.world {
+            if Self.showsSpikePreview {
+                SpikePreviewScreen()
+            } else if let world = model.world {
                 StandbyView(input: model.input, world: world,
                             settings: model.state.settings, battery: model.battery,
                             timeWarp: model.timeWarp, sheet: $sheet)
