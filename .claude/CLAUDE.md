@@ -195,8 +195,18 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 背景は 3 系統（同梱のへや／写真／ホーム画面のスクリーンショット）から選べ、
 歩ける帯は指で決められます。
 
-次の山は **ウィジェット疑似アニメの実機スパイク**（§9 Phase 0 の 0-9〜0-11、D-11。
-判定が出るまで `Settings.widgetPseudoAnimation` は切のまま）。
+**スパイクの判定は出ました。Conditional Go**（2026-09-23、D-11。記録は
+`docs/260912_spike.md` §4）。面 1 は「**様子が変わる窓**」で、`timelineTransition` が既定、
+**`Settings.widgetPseudoAnimation` は切のまま**（既定の `false` を追認）。
+
+マスク書体を当てる細工は実機のウィジェットでは効きませんでした。ただし
+**止まったのは細工だけで、拡張が動いていないあいだの描き直しは生きています。**
+`Text(timerInterval:)` を**素の文字として使う**見せ方（残り時間・秒の出る時計）は
+面 1 でも面 3 でも使えます。
+
+次の山は **Phase 2**（キャラ 5 体・部屋・アイテム）と **Phase 3**（ホーム画面ウィジェット）。
+スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は Phase 3 の 3-2 に
+入るときに消します。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
