@@ -23,6 +23,19 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
 
+# **iPhone だけを対象にする。**
+#
+# XcodeGen は各ターゲットに TARGETED_DEVICE_FAMILY = "1,2"（iPhone と iPad）を
+# 既定で書き込み、それが settings.base（プロジェクト全体）を上書きする。だから
+# ここで束ねて、ターゲット側から名乗り直す。
+#
+# iPad を名乗ると「全向きに対応せよ」と要求され、待受モードの縦向き固定と矛盾して
+# 実機ビルドが警告を出す。透過ウィジェットの切り抜き座標も Dynamic Island も
+# StandBy も iPhone 前提なので（プラン §4.4）、名乗りのほうを実態に合わせる。
+settingGroups:
+  iPhoneOnly:
+    TARGETED_DEVICE_FAMILY: "1"
+
 packages:
   CTCore:
     path: Packages/CTCore
@@ -54,6 +67,7 @@ targets:
       # スパイクは判定が出たら丸ごと消す（プラン §9 Phase 0 の 0-9〜0-11）。
       - target: CharaTimeSpikeWidgetExtension
     settings:
+      groups: [iPhoneOnly]
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.charatime
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -91,6 +105,7 @@ targets:
       - package: CTRender
       - package: CTStore
     settings:
+      groups: [iPhoneOnly]
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.charatime.widget
         # 拡張は約 30 MB のメモリ上限で動く。重い依存を足すときはここを思い出す
@@ -120,6 +135,7 @@ targets:
     sources:
       - path: CharaTimeSpikeWidget
     settings:
+      groups: [iPhoneOnly]
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.charatime.spike
     info:
