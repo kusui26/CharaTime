@@ -56,6 +56,13 @@ struct ModelTests {
         #expect(restored.depthScaleFar == 0.85)
     }
 
+    @Test("画像を持つのは、取り込んだ背景だけ")
+    func backgroundImageFileName() {
+        #expect(Background.bundled("room").imageFileName == nil)
+        #expect(Background.photo(fileName: "bg-1").imageFileName == "bg-1")
+        #expect(Background.homeScreenShot(fileName: "bg-2").imageFileName == "bg-2")
+    }
+
     @Test("アイテムが行動の語彙を増やす")
     func affordances() {
         let room = Room(

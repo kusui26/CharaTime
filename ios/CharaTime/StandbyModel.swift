@@ -27,15 +27,19 @@ final class StandbyModel {
     var room: Room { state.room ?? BundledRoom.room }
 
     /// 日課エンジンへの入力。文脈（電池）だけが端末の状態で変わる。
+    ///
+    /// 文脈は `state.json` に書いたものをそのまま使う。ウィジェットも同じものを読むので、
+    /// アプリとウィジェットが同じ入力から同じ姿を出す（プラン §9 Phase 3 の 3-C ⑩）。
     var input: WorldInput {
         WorldInput(character: character ?? .placeholder,
                    room: room,
                    userSeed: state.userSeed,
-                   context: context)
+                   context: state.context)
     }
 
     private var character: CTCore.Character?
-    private var context: ContextSnapshot?
+    /// 電池の変化の知らせを受ける登録。待受モードを見ているあいだだけ持つ。
+    @ObservationIgnored private var batteryObservers: [any NSObjectProtocol] = []
 
     func start() {
         load()
@@ -44,6 +48,7 @@ final class StandbyModel {
     }
 
     func stop() {
+        endWatchingBattery()
         keepScreenAwake(false)
     }
 
@@ -75,13 +80,9 @@ final class StandbyModel {
 
     /// いまの部屋の背景。画像が読めなければ同梱の部屋に落とす（画面が出ないより良い）。
     private func backdrop() -> RoomBackdrop {
-        switch room.background {
-        case .bundled:
-            return .drawn()
-        case .photo(let fileName), .homeScreenShot(let fileName):
-            guard let image = ImageStore.shared.load(fileName) else { return .drawn() }
-            return .picture(image)
-        }
+        guard let fileName = room.background.imageFileName,
+              let image = ImageStore.shared.load(fileName) else { return .drawn() }
+        return .picture(image)
     }
 
     // MARK: - 部屋を選ぶ
@@ -116,34 +117,60 @@ final class StandbyModel {
     }
 
     /// 部屋を保存して画面に反映する。nil は「同梱の部屋のまま」。
+    ///
+    /// 片づけは、`state.json` が参照する画像（部屋・壁紙・切り抜き）のほかを消す（3-C ⑦）。
+    /// 書けたときだけ片づける。書けないまま片づけると、古い `state.json` を読むウィジェットが、
+    /// そこに書いてある画像を見つけられなくなる。
     private func save(_ updated: Room?) {
         state.room = updated
-        do {
-            try StateStore.shared.save(state)
-        } catch {
-            loadFailure = String(describing: error)
+        if persist() {
+            ImageStore.shared.removeAll(keeping: state.referencedImageNames)
         }
-        ImageStore.shared.removeAll(keeping: imageNames(of: updated))
         rebuildWorld()
     }
 
-    private func imageNames(of room: Room?) -> Set<String> {
-        switch room?.background {
-        case .photo(let name), .homeScreenShot(let name): [name]
-        default: []
+    /// 状態を App Group に書く。ウィジェットは、ここで書いたものを読む。
+    @discardableResult
+    private func persist() -> Bool {
+        do {
+            try StateStore.shared.save(state)
+            return true
+        } catch {
+            loadFailure = String(describing: error)
+            return false
         }
     }
 
     // MARK: - 端末の状態
 
+    /// 電池の変化も見張る。アプリを開いたまま充電器に置いたとき、喜ぶのはその瞬間から（3-C ⑩）。
     private func beginWatchingBattery() {
         #if canImport(UIKit)
         UIDevice.current.isBatteryMonitoringEnabled = true
+        if batteryObservers.isEmpty {
+            batteryObservers = [UIDevice.batteryStateDidChangeNotification,
+                                UIDevice.batteryLevelDidChangeNotification].map { observeBattery($0) }
+        }
         #endif
         readBattery()
     }
 
-    /// 電池を測って、表示にも日課エンジンにも同じ値を渡す。
+    /// 知らせを受けたら電池を読み直す。知らせはメインキューで受けるので、隔離の中でそのまま読める。
+    private func observeBattery(_ name: Notification.Name) -> any NSObjectProtocol {
+        NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.readBattery() }
+        }
+    }
+
+    private func endWatchingBattery() {
+        batteryObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        batteryObservers = []
+    }
+
+    /// 電池を測って、表示にも日課エンジンにもウィジェットにも同じ値を渡す（3-C ⑩）。
+    ///
+    /// 充電を始めた時刻は、読み直しても前の値を引き継ぐ（`ContextSnapshot.reading`）。
+    /// 充電したままアプリを開き直すたびに「ありがとう」と言い直さないため。
     private func readBattery() {
         #if canImport(UIKit)
         let device = UIDevice.current
@@ -151,7 +178,9 @@ final class StandbyModel {
         let level = device.batteryLevel < 0 ? nil : Double(device.batteryLevel)
         let charging = device.batteryState == .charging || device.batteryState == .full
         battery = BatteryReading(level: level, isCharging: charging)
-        context = ContextSnapshot(batteryLevel: level, isCharging: charging, capturedAt: Date())
+        state.context = ContextSnapshot.reading(batteryLevel: level, isCharging: charging,
+                                                at: Date(), previous: state.context)
+        persist()
         #endif
     }
 

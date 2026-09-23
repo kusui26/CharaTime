@@ -9,6 +9,11 @@ import CTCore
 public struct AppState: Codable, Sendable, Equatable {
 
     /// この構造体が理解できるスキーマの版。
+    ///
+    /// **項目を足すだけなら上げない**（プラン §9 Phase 3 の 3-C ⑪）。古い側は知らない項目を捨て、
+    /// 新しい側は無い項目を既定で埋めるので、足すだけなら両方が読める。版を上げると、古い側は
+    /// 種のほかを既定値に戻す（`StateStore.load` の未来の版の扱い）。上げるのは、古い側が
+    /// 読み違える変更（項目の意味や形を変える）のときだけ。
     public static let currentSchemaVersion = 1
 
     /// 書いた側の版。これより新しい JSON を読んだときは既定値に落とす。
@@ -27,16 +32,36 @@ public struct AppState: Codable, Sendable, Equatable {
 
     public var settings: Settings
 
+    /// 本体アプリが最後に読んだ文脈（電池・充電）。ウィジェットはこれを日課エンジンに渡す
+    /// （3-C ⑩）。nil は「まだ読んでいない」で、文脈の割り込みは起きない。
+    public var context: ContextSnapshot?
+
+    /// ウィジェットの設定（3-C ⑪）。
+    public var widget: WidgetSettings
+
     public init(schemaVersion: Int = AppState.currentSchemaVersion,
                 userSeed: UInt64,
                 selectedCharacterID: String = "piyo",
                 room: Room? = nil,
-                settings: Settings = Settings()) {
+                settings: Settings = Settings(),
+                context: ContextSnapshot? = nil,
+                widget: WidgetSettings = WidgetSettings()) {
         self.schemaVersion = schemaVersion
         self.userSeed = userSeed
         self.selectedCharacterID = selectedCharacterID
         self.room = room
         self.settings = settings
+        self.context = context
+        self.widget = widget
+    }
+
+    /// `state.json` が参照している画像の名前（`ImageStore` の名前）。
+    ///
+    /// 片づけ（`ImageStore.removeAll(keeping:)`）は、これに入らない画像を消す。部屋の背景・
+    /// 壁紙のスクリーンショット・スロットの切り抜きを、ここ 1 か所で集める（3-C ⑦）。
+    /// **画像を参照する項目を足したら、ここにも足す。** 足し忘れると、部屋を選び直したときに消える。
+    public var referencedImageNames: Set<String> {
+        Set([room?.background.imageFileName].compactMap { $0 } + widget.imageNames)
     }
 
     /// 初回起動用。種だけ乱数で決めて、あとは既定値。
@@ -55,6 +80,10 @@ public struct AppState: Codable, Sendable, Equatable {
         // 部屋が壊れていても、同梱の部屋に戻すだけで済ませる（画面が出ないより良い）。
         room = try? box.decodeIfPresent(Room.self, forKey: .room)
         settings = try box.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
+        // 文脈とウィジェットの設定も、壊れていたら無かったことにする。全体を読めなくすると
+        // 種まで既定値に戻り、別のキャラの一日になってしまう。
+        context = try? box.decodeIfPresent(ContextSnapshot.self, forKey: .context)
+        widget = (try? box.decodeIfPresent(WidgetSettings.self, forKey: .widget)) ?? WidgetSettings()
     }
 }
 
@@ -83,19 +112,19 @@ public struct Settings: Codable, Sendable, Equatable {
     public var nightMode: Bool
     /// 音。当時の「消せない BGM」への不満を踏まえて既定は切（プラン §2.5）。
     public var soundEnabled: Bool
-    /// ウィジェットの疑似アニメ。Phase 0 のスパイクで Go が出るまで切のまま（プラン D-11）。
-    public var widgetPseudoAnimation: Bool
+
+    // ウィジェットの疑似アニメの入／切は `WidgetSettings.pseudoAnimation` へ移した（3-C ⑪）。
+    // ここにあった値（`widgetPseudoAnimation`）は引き継がない。読むだけの設定画面が書いた
+    // 既定の false で、利用者が選んだ値ではないため。古い JSON に残っていても、知らない項目として捨てる。
 
     public init(showsClock: Bool = true,
                 clockStyle: ClockStyle = .retro,
                 nightMode: Bool = true,
-                soundEnabled: Bool = false,
-                widgetPseudoAnimation: Bool = false) {
+                soundEnabled: Bool = false) {
         self.showsClock = showsClock
         self.clockStyle = clockStyle
         self.nightMode = nightMode
         self.soundEnabled = soundEnabled
-        self.widgetPseudoAnimation = widgetPseudoAnimation
     }
 
     public init(from decoder: any Decoder) throws {
@@ -104,6 +133,5 @@ public struct Settings: Codable, Sendable, Equatable {
         clockStyle = try box.decodeIfPresent(ClockStyle.self, forKey: .clockStyle) ?? .retro
         nightMode = try box.decodeIfPresent(Bool.self, forKey: .nightMode) ?? true
         soundEnabled = try box.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? false
-        widgetPseudoAnimation = try box.decodeIfPresent(Bool.self, forKey: .widgetPseudoAnimation) ?? false
     }
 }

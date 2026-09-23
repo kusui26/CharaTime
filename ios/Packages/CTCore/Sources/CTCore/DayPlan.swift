@@ -106,6 +106,8 @@ enum RandomScope {
     static let midnight: UInt64 = 0x4D1D_0000
     /// 起きているあいだの区切りの抽選。
     static let awakeSlot: UInt64 = 1
+    /// ウィジェットのまばたきの集まり（`BlinkRhythm`）。日によらず、キャラごとに決まる。
+    static let blink: UInt64 = 0xB1_1BC0
 }
 
 /// 行動を抽選するときの重み。

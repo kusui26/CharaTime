@@ -221,9 +221,9 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 さらに 1 秒に 4 回（`ambient4fps`）まで入れ替えられることを、実機（iOS 26.1）で確かめました。
 組むときは、タイマー文字に `.fixedSize()` を当てないこと（§3 の落とし穴。C・D はこれで点かなかった）。
 
-`Settings.widgetPseudoAnimation` はまだ切のままです。既定を決めるのは、本番のウィジェットに
-疑似アニメを組み込む Phase 3 の 3-2b。スパイク E の残りのマトリクス（低電力・着色・常時表示など）と
-電池は、どの状態で静止画に落とすかを決める材料として測ります。
+疑似アニメの入／切（`state.json` の `widget.pseudoAnimation`）は、選んでいなければ既定の切です。
+既定を決めるのは、本番のウィジェットに疑似アニメを組み込む Phase 3 の 3-2b。スパイク E の残りの
+マトリクス（低電力・着色・常時表示など）と電池は、どの状態で静止画に落とすかを決める材料として測ります。
 
 次の山は **Phase 3**（ホーム画面ウィジェット）。**Phase 2**（キャラ 5 体・部屋・アイテム）より先に行います（D-16）。
 作業の順番・設計・確かめ方は、プラン §9 の Phase 3（3-A〜3-I）にあります。
@@ -233,6 +233,8 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 実機の画面収録やスクリーンショットは `iPhone/` に置かれます。**git に入れない**（`.gitignore` 済み。壁紙に人物が写る）。
 スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は、E・F の作り（マスク書体、
 右から k 字目の切り出し `GlyphWindow`、0 時起点 `MidnightClock`）を本番へ移してから消します（3-2b）。
+**3-1（CTCore と CTStore）も済み**: エントリの時刻（`WidgetTimeline`）、動かし方（`AmbientCue`・
+`BlinkRhythm`・`TimerWindow`）、`state.json` の `context` と `widget`。次は 3-2（静止のウィジェット）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
