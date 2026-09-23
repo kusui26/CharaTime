@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "CTRender",
-    platforms: [.iOS(.v26), .macOS(.v14)],
+    platforms: [.iOS(.v26), .macOS(.v15)],
     products: [
         .library(name: "CTRender", targets: ["CTRender"])
     ],

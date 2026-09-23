@@ -33,7 +33,8 @@ public struct FloorBandEditor: View {
             let size = geometry.size
             let rect = floorRect(in: size)
             ZStack {
-                BackdropView(backdrop: backdrop, floor: rect, palette: .day, isNight: false)
+                BackdropView(backdrop: backdrop, layout: layout(in: size, floor: rect),
+                             palette: .day, isNight: false)
                 FloorBandOverlay(band: band, size: size, dragging: dragging)
                 preview(in: size, floor: rect)
                 handles(in: size)
@@ -51,10 +52,15 @@ public struct FloorBandEditor: View {
         return RoomRect(x: inset, y: band.top, width: 1 - inset * 2, height: band.height)
     }
 
+    /// 決めかけの帯で、画面いっぱいに置いたときの置き方。
+    private func layout(in size: CGSize, floor: RoomRect) -> SceneLayout {
+        SceneLayout(size: size, room: Room(background: .bundled(""), floor: floor),
+                    geometry: world.spriteGeometry)
+    }
+
     /// 帯の奥と手前に立たせて見せる。**奥ほど小さく見える**ことが目で分かる。
     private func preview(in size: CGSize, floor: RoomRect) -> some View {
-        let layout = SceneLayout(size: size, room: Room(background: .bundled(""), floor: floor),
-                                 geometry: world.spriteGeometry)
+        let layout = self.layout(in: size, floor: floor)
         return ZStack {
             ghost(at: floor.at(0.22, 0), layout: layout, opacity: 0.55)
             ghost(at: floor.at(0.78, 1), layout: layout, opacity: 1.0)
@@ -65,9 +71,9 @@ public struct FloorBandEditor: View {
         let state = SceneState(time: .distantPast, activity: .idle, position: position,
                                facing: .front, frame: 0)
         return ZStack {
-            ShadowView(state: state, layout: layout, flourish: .still,
+            ShadowView(position: position, layout: layout, flourish: .still,
                        characterScale: world.character.scale)
-            CharacterView(character: world.character, state: state,
+            CharacterView(character: world.character, position: position, pick: .live(state),
                           layout: layout, flourish: .still)
         }
         .opacity(opacity)

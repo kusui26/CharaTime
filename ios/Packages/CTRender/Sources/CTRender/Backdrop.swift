@@ -27,14 +27,14 @@ public enum RoomBackdrop: Sendable {
 struct BackdropView: View {
 
     let backdrop: RoomBackdrop
-    let floor: RoomRect
+    let layout: SceneLayout
     let palette: RoomPalette
     let isNight: Bool
 
     var body: some View {
         switch backdrop {
         case .drawn(let showsWindow):
-            RoomView(floor: floor, palette: palette, showsWindow: showsWindow,
+            RoomView(layout: layout, palette: palette, showsWindow: showsWindow,
                      showsRug: true, isNight: isNight)
         case .picture(let image):
             PictureBackdrop(image: image, isNight: isNight)

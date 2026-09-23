@@ -75,11 +75,12 @@ public struct AmbientArt: Hashable, Sendable {
 /// 重ねる方式なら起きない。跳ねる絵（よろこぶ）のように土台を覆えないときだけ、2 枚を出し分ける。
 ///
 /// 描き手は `baseFrame` を描き、`overlays` を順に重ねる。絵はどれも `pose` のもの（姿勢に
-/// 絵が無ければ、待受モードと同じく立ち姿に落とす）。描画の段が上がらないとき（5 分ごとの
-/// 切り替え）は、`SceneState` のコマをそのまま描き、ここは使わない。
+/// 絵が無ければ、待受モードと同じく立ち姿に落とす）。`pose` は `Activity.stillPose` と同じ。
+/// 描画の段が上がらないとき（5 分ごとの切り替え）も、同じ姿勢の 1 コマ目を描く。段が変わっても
+/// 姿勢が変わらないようにするため。
 public struct AmbientCue: Hashable, Sendable {
 
-    /// 描く姿勢。歩いているときは、立ち止まった姿（idle）。
+    /// 描く姿勢。歩いているときは、立ち止まった姿（idle。`Activity.stillPose`）。
     public let pose: Pose
     /// 常に描くコマ。nil のときは、重ねるコマどうしで出し分ける。
     public let baseFrame: Int?
@@ -143,10 +144,8 @@ public extension AmbientCue {
             cheering(withSparkles: room.hasMirrorBall(id: itemId))
         case .play, .happyStretch:
             cheering(withSparkles: false)
-        case .wander:
-            blinking(.idle, blink: blink, art: art)
-        case .idle, .clockGreet, .eat, .sit, .look:
-            blinking(activity.pose, blink: blink, art: art)
+        case .wander, .idle, .clockGreet, .eat, .sit, .look:
+            blinking(activity.stillPose, blink: blink, art: art)
         }
     }
 

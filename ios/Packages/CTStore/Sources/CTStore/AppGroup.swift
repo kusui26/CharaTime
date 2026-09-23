@@ -17,3 +17,12 @@ public enum AppGroup {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
     }
 }
+
+/// ホーム画面ウィジェットの種類の名前（WidgetKit の kind）。
+///
+/// 拡張が名乗るときと、アプリが作り直しを頼むとき（`WidgetCenter.reloadTimelines(ofKind:)`）に
+/// 同じ名前を使う。**変えると、置いてあるウィジェットは別のものとして扱われ、置き直しになる。**
+/// 名前を指して頼むのは、スパイクのウィジェット（3-0a で測っている最中）を巻き込まないため。
+public enum WidgetKind {
+    public static let home = "CharaTimeHome"
+}

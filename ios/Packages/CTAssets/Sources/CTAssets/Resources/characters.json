@@ -4,6 +4,29 @@
     {
       "displayName": "ピヨ",
       "id": "piyo",
+      "miniPoses": {
+        "happy": [
+          "piyo_happy_01_mini",
+          "piyo_happy_02_mini"
+        ],
+        "idle": [
+          "piyo_idle_01_mini",
+          "piyo_idle_02_mini"
+        ],
+        "sit": [
+          "piyo_sit_01_mini"
+        ],
+        "sleep": [
+          "piyo_sleep_01_mini",
+          "piyo_sleep_02_mini"
+        ],
+        "walk": [
+          "piyo_walk_01_mini",
+          "piyo_walk_02_mini",
+          "piyo_walk_03_mini",
+          "piyo_walk_04_mini"
+        ]
+      },
       "origin": {
         "bundled": {}
       },
@@ -43,6 +66,29 @@
     {
       "displayName": "モチ",
       "id": "mochi",
+      "miniPoses": {
+        "happy": [
+          "mochi_happy_01_mini",
+          "mochi_happy_02_mini"
+        ],
+        "idle": [
+          "mochi_idle_01_mini",
+          "mochi_idle_02_mini"
+        ],
+        "sit": [
+          "mochi_sit_01_mini"
+        ],
+        "sleep": [
+          "mochi_sleep_01_mini",
+          "mochi_sleep_02_mini"
+        ],
+        "walk": [
+          "mochi_walk_01_mini",
+          "mochi_walk_02_mini",
+          "mochi_walk_03_mini",
+          "mochi_walk_04_mini"
+        ]
+      },
       "origin": {
         "bundled": {}
       },
@@ -82,6 +128,29 @@
     {
       "displayName": "クマオ",
       "id": "kumao",
+      "miniPoses": {
+        "happy": [
+          "kumao_happy_01_mini",
+          "kumao_happy_02_mini"
+        ],
+        "idle": [
+          "kumao_idle_01_mini",
+          "kumao_idle_02_mini"
+        ],
+        "sit": [
+          "kumao_sit_01_mini"
+        ],
+        "sleep": [
+          "kumao_sleep_01_mini",
+          "kumao_sleep_02_mini"
+        ],
+        "walk": [
+          "kumao_walk_01_mini",
+          "kumao_walk_02_mini",
+          "kumao_walk_03_mini",
+          "kumao_walk_04_mini"
+        ]
+      },
       "origin": {
         "bundled": {}
       },
@@ -122,6 +191,29 @@
     {
       "displayName": "フワ",
       "id": "fuwa",
+      "miniPoses": {
+        "happy": [
+          "fuwa_happy_01_mini",
+          "fuwa_happy_02_mini"
+        ],
+        "idle": [
+          "fuwa_idle_01_mini",
+          "fuwa_idle_02_mini"
+        ],
+        "sit": [
+          "fuwa_sit_01_mini"
+        ],
+        "sleep": [
+          "fuwa_sleep_01_mini",
+          "fuwa_sleep_02_mini"
+        ],
+        "walk": [
+          "fuwa_walk_01_mini",
+          "fuwa_walk_02_mini",
+          "fuwa_walk_03_mini",
+          "fuwa_walk_04_mini"
+        ]
+      },
       "origin": {
         "bundled": {}
       },
@@ -161,6 +253,29 @@
     {
       "displayName": "チップ",
       "id": "chip",
+      "miniPoses": {
+        "happy": [
+          "chip_happy_01_mini",
+          "chip_happy_02_mini"
+        ],
+        "idle": [
+          "chip_idle_01_mini",
+          "chip_idle_02_mini"
+        ],
+        "sit": [
+          "chip_sit_01_mini"
+        ],
+        "sleep": [
+          "chip_sleep_01_mini",
+          "chip_sleep_02_mini"
+        ],
+        "walk": [
+          "chip_walk_01_mini",
+          "chip_walk_02_mini",
+          "chip_walk_03_mini",
+          "chip_walk_04_mini"
+        ]
+      },
       "origin": {
         "bundled": {}
       },

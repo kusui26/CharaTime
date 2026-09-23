@@ -42,15 +42,17 @@ def write_imageset(catalog_dir, name, image_paths):
     return imageset
 
 
-def update_characters(json_path, poses_by_character, geometry):
-    """`characters.json` のコマ一覧と、絵の枠の情報を差し替える。
+def update_characters(json_path, poses_by_character, mini_by_character, geometry):
+    """`characters.json` のコマ一覧（待受モード用とウィジェット用）と、絵の枠の情報を差し替える。
 
     **性格や表示名は人が調整した値なので触らない。** パイプラインが持つのは
     「どの姿勢に何枚あるか」と「絵のどこが足元か」だけで、
     それ以外は既にある JSON を尊重する。
     """
-    return _update_json(json_path, "characters", poses_by_character,
-                        lambda entry, value: entry.__setitem__("poses", value),
+    def apply(entry, value):
+        entry["poses"] = value
+        entry["miniPoses"] = mini_by_character[entry["id"]]
+    return _update_json(json_path, "characters", poses_by_character, apply,
                         top_level={"spriteGeometry": geometry})
 
 

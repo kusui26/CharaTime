@@ -96,4 +96,9 @@ public enum NightMode {
     public static func isNight(hour: Int) -> Bool {
         hour >= startHour || hour < endHour
     }
+
+    /// その時刻が夜か。時はその暦で数える（待受モードとウィジェットで同じ規則）。
+    public static func isNight(at date: Date, calendar: Calendar) -> Bool {
+        isNight(hour: calendar.component(.hour, from: date))
+    }
 }

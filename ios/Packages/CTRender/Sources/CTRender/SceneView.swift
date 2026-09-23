@@ -5,7 +5,8 @@ import CTAssets
 /// ある時刻のキャラと部屋を 1 枚の絵にする。**すべての面がこれを使う**（プラン §7.5）。
 ///
 /// 面ごとに違うのは「どの時刻を渡すか」と「どの大きさで置くか」だけ。
-/// 待受モードは毎フレーム、ウィジェットは 5 分ごとの 1 枚を、同じ関数に渡す。
+/// 待受モードは毎フレーム、ウィジェットは 5 分ごとの 1 枚を、同じ関数に渡す
+/// （ウィジェットの枠は `WidgetScene`）。
 public struct SceneView: View {
 
     public let state: SceneState
@@ -32,42 +33,104 @@ public struct SceneView: View {
         GeometryReader { geometry in
             let layout = SceneLayout(size: geometry.size, room: world.room,
                                      geometry: world.spriteGeometry)
-            let parts = ItemOrder.split(world.room.items, character: state.position,
-                                        definitions: world.definitions)
             ZStack {
-                BackdropView(backdrop: world.backdrop, floor: world.room.floor,
+                BackdropView(backdrop: world.backdrop, layout: layout,
                              palette: palette, isNight: isNight)
-                layer(parts.behind, layout: layout)
-                ShadowView(state: state, layout: layout, flourish: flourish,
-                           characterScale: world.character.scale)
-                CharacterView(character: world.character, state: state,
-                              layout: layout, flourish: flourish)
-                layer(parts.front, layout: layout)
-                EffectsView(state: state, room: world.room, layout: layout,
-                            definitions: world.definitions, palette: palette, seconds: seconds)
-                bubble(layout: layout)
+                SceneLayers(state: state, world: world, layout: layout, palette: palette,
+                            look: .standby(reducesMotion: reducesMotion), seconds: seconds)
             }
         }
     }
+}
 
-    /// Reduce Motion のときは味付けを外し、コマの切り替えだけにする。
-    private var flourish: Flourish {
-        reducesMotion ? .still : state.flourish
+/// 待受モードとウィジェットで違う、描き方の選び（プラン §7.5）。
+struct SceneLook: Sendable, Equatable {
+    /// 待受モードは動くコマそのまま、ウィジェットは止めた 1 枚（`SpritePick.still`）。
+    var stills: Bool
+    /// 呼吸・弾み・かしげを当てるか。止めた 1 枚に当てると、跳ねた途中で 5 分止まる。
+    var flourishes: Bool
+    var bubble: BubbleStyle
+    var showsSparkles: Bool
+    /// キャラ（影と吹き出しを含む）の同一性。変わると、滑らせずに消えて現れる（3-C ④'）。
+    var characterIdentity: Int
+
+    static func standby(reducesMotion: Bool) -> SceneLook {
+        SceneLook(stills: false, flourishes: !reducesMotion, bubble: .standby,
+                  showsSparkles: true, characterIdentity: 0)
     }
 
-    private func layer(_ items: [PlacedItem], layout: SceneLayout) -> some View {
-        ItemLayer(items: items, definitions: world.definitions,
-                  layout: layout, palette: palette)
+    static func widget(identity: Int, tone: WidgetTone) -> SceneLook {
+        SceneLook(stills: true, flourishes: false,
+                  bubble: tone == .fullColor ? .widget : BubbleStyle.widget.tinted(),
+                  showsSparkles: false, characterIdentity: identity)
+    }
+}
+
+/// 部屋の中身（アイテム・影・キャラ・演出・吹き出し）を重ねる。待受モードもウィジェットもこれを使う。
+///
+/// **アイテムとキャラは 1 つの重なりに置き、前後は `zIndex` で決める。** キャラが動いて
+/// アイテムの前後が入れ替わっても、アイテムの View は同じまま残る。ウィジェットのエントリ切替で、
+/// 前後が入れ替わったアイテムだけが消えて現れ直す、ということが起きない。
+struct SceneLayers: View {
+
+    let state: SceneState
+    let world: SceneWorld
+    let layout: SceneLayout
+    let palette: RoomPalette
+    let look: SceneLook
+    let seconds: Double
+
+    /// 重ねる順。画面の下にあるアイテムほど手前（プラン §7.5 の「y でソート」）。
+    private enum Depth {
+        static let itemsBehind: Double = 0
+        static let character: Double = 1
+        static let itemsInFront: Double = 2
+        static let effects: Double = 3
+        static let bubble: Double = 4
+    }
+
+    var body: some View {
+        let parts = ItemOrder.split(world.room.items, character: state.position,
+                                    definitions: world.definitions)
+        let frontIDs = Set(parts.front.map(\.id))
+        ZStack {
+            ForEach(parts.behind + parts.front) { item in
+                if let definition = world.definitions[item.kind] {
+                    ItemView(item: item, definition: definition, layout: layout, palette: palette)
+                        .zIndex(frontIDs.contains(item.id) ? Depth.itemsInFront : Depth.itemsBehind)
+                }
+            }
+            character.zIndex(Depth.character)
+            EffectsView(state: state, room: world.room, layout: layout, definitions: world.definitions,
+                        palette: palette, seconds: seconds, showsSparkles: look.showsSparkles)
+                .zIndex(Depth.effects)
+            bubble.zIndex(Depth.bubble)
+        }
+    }
+
+    private var pick: SpritePick { look.stills ? .still(state) : .live(state) }
+    private var flourish: Flourish { look.flourishes ? state.flourish : .still }
+
+    private var character: some View {
+        ZStack {
+            ShadowView(position: state.position, layout: layout, flourish: flourish,
+                       characterScale: world.character.scale)
+            CharacterView(character: world.character, position: state.position, pick: pick,
+                          layout: layout, flourish: flourish)
+        }
+        .id(look.characterIdentity)
+        .transition(.opacity)
     }
 
     @ViewBuilder
-    private func bubble(layout: SceneLayout) -> some View {
+    private var bubble: some View {
         if let bubble = state.bubble {
-            BubbleView(bubble: bubble, layout: layout,
-                       characterPosition: state.position,
+            BubbleView(bubble: bubble, layout: layout, characterPosition: state.position,
                        characterHeight: layout.characterHeight(at: state.position,
                                                                characterScale: world.character.scale),
-                       palette: palette)
+                       palette: palette, style: look.bubble)
+                .id(look.characterIdentity)
+                .transition(.opacity)
         }
     }
 }

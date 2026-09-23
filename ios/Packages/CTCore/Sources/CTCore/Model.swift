@@ -108,16 +108,35 @@ public struct Character: Codable, Sendable, Equatable, Identifiable {
     public var personality: Personality
     /// 姿勢ごとのアセット名。`poses[.walk] = ["piyo_walk_01", ...]`
     public var poses: [Pose: [String]]
+    /// ウィジェット用の小さい絵（mini）のアセット名。並びは `poses` と同じ（プラン §5.3、D-20）。
+    ///
+    /// ウィジェット拡張のメモリは約 30 MB しかない。待受モードの絵は 1 コマ展開すると約 1.9 MB に
+    /// なるので、ウィジェットは小さく焼いたこちらを読む。無い姿勢は `poses` の絵で描く。
+    public var miniPoses: [Pose: [String]]
     public var origin: Origin
 
     public init(id: String, displayName: String, scale: Double = 1.0,
-                personality: Personality, poses: [Pose: [String]], origin: Origin = .bundled) {
+                personality: Personality, poses: [Pose: [String]],
+                miniPoses: [Pose: [String]] = [:], origin: Origin = .bundled) {
         self.id = id
         self.displayName = displayName
         self.scale = scale
         self.personality = personality
         self.poses = poses
+        self.miniPoses = miniPoses
         self.origin = origin
+    }
+
+    // mini はあとから足した項目。無い JSON（取り込んだキャラなど）も読めるようにする。
+    public init(from decoder: any Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        id = try box.decode(String.self, forKey: .id)
+        displayName = try box.decode(String.self, forKey: .displayName)
+        scale = try box.decode(Double.self, forKey: .scale)
+        personality = try box.decode(Personality.self, forKey: .personality)
+        poses = try box.decode([Pose: [String]].self, forKey: .poses)
+        miniPoses = try box.decodeIfPresent([Pose: [String]].self, forKey: .miniPoses) ?? [:]
+        origin = try box.decode(Origin.self, forKey: .origin)
     }
 
     /// その姿勢のコマ数。0 のときは呼び出し側が idle に落とす。
@@ -283,7 +302,6 @@ public enum Activity: Codable, Sendable, Equatable {
     /// 起きた直後の伸び。
     case happyStretch
 
-    /// この行動を描くのに使う姿勢。
     /// 眠っているか。描く側も「動かさない」判断にこれを使う。
     public var isAsleep: Bool {
         switch self {
@@ -292,6 +310,7 @@ public enum Activity: Codable, Sendable, Equatable {
         }
     }
 
+    /// この行動を描くのに使う姿勢。
     public var pose: Pose {
         switch self {
         case .sleep, .nap:            .sleep
@@ -302,6 +321,16 @@ public enum Activity: Codable, Sendable, Equatable {
         case .look:                   .lookUp
         case .eat:                    .idle
         }
+    }
+
+    /// 止めた 1 枚で描くときの姿勢（ウィジェット。プラン §9 Phase 3 の 3-C ④）。
+    ///
+    /// 歩く姿を 5 分止めておくと、足を上げたまま固まって見える。エントリの時刻には
+    /// 立ち止まった姿（idle）で描き、居場所の移動はエントリ切替のアニメで見せる（④'）。
+    /// ほかの行動は、その行動の姿勢のまま。
+    public var stillPose: Pose {
+        if case .wander = self { return .idle }
+        return pose
     }
 }
 

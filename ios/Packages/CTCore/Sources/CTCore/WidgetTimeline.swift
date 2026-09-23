@@ -43,6 +43,15 @@ public enum WidgetTimeline {
             .map(Date.init(timeIntervalSinceReferenceDate:))
     }
 
+    /// `time` かそれより前の、最後の升目。ちょうど升目の上なら、その時刻。
+    ///
+    /// その時刻にホーム画面が出しているエントリの時刻（アプリ内の下見で、ウィジェットと同じ絵を出すのに使う）。
+    public static func gridPoint(atOrBefore time: Date, calendar: Calendar) -> Date {
+        let midnight = calendar.startOfDay(for: time)
+        let steps = (time.timeIntervalSince(midnight) / gridSeconds).rounded(.down)
+        return midnight.addingTimeInterval(steps * gridSeconds)
+    }
+
     /// `time` より後の、最初の升目。ちょうど升目の上なら、その次。
     ///
     /// 升目はその日の 0 時から 5 分ごと。0 時は絶対時刻でも 5 分の倍数の上にある

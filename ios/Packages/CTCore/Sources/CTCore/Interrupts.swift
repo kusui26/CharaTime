@@ -46,10 +46,36 @@ public enum Interrupts {
     private static func lowBatterySlowdown(of state: SceneState,
                                            context: ContextSnapshot) -> SceneState? {
         guard (0..<freshnessSeconds).contains(state.time.timeIntervalSince(context.capturedAt)),
-              let level = context.batteryLevel, level < lowBatteryThreshold,
-              context.isCharging != true, case .wander = state.activity else { return nil }
+              context.isLowBattery, case .wander = state.activity else { return nil }
         var result = state
         result.changeActivity(to: .idle)
         return result
+    }
+
+    /// 文脈が変わって、割り込みの答え（喜ぶ・鈍る）が変わりうるか（プラン §9 Phase 3 の 3-C ⑩）。
+    ///
+    /// 本体アプリは電池の知らせのたびに文脈を書き直す（充電中は 1% ごとに届く）。ウィジェットを
+    /// 作り直すのは、答えが変わりうるときだけにする。作り直すたびに、拡張が 73 件を描き直すため。
+    /// 電池が少ないあいだは、読み直すだけでも作り直す。鈍る時間（読んでから 1 時間）が延びるため。
+    public static func mayChangeScene(from old: ContextSnapshot?, to new: ContextSnapshot?) -> Bool {
+        switch (old, new) {
+        case (nil, nil):
+            false
+        case (nil, _?), (_?, nil):
+            true
+        case let (old?, new?):
+            old.isCharging != new.isCharging
+                || old.chargingSince != new.chargingSince
+                || old.isLowBattery != new.isLowBattery
+                || (new.isLowBattery && old.capturedAt != new.capturedAt)
+        }
+    }
+}
+
+public extension ContextSnapshot {
+    /// 電池が少ないとみなすか。充電中は、残りが少なくても鈍らせない。
+    var isLowBattery: Bool {
+        guard let level = batteryLevel, isCharging != true else { return false }
+        return level < Interrupts.lowBatteryThreshold
     }
 }

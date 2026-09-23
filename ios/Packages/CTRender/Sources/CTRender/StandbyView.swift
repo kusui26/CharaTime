@@ -78,8 +78,7 @@ public struct StandbyView: View {
     }
 
     private func isNight(at date: Date) -> Bool {
-        guard settings.nightMode else { return false }
-        return NightMode.isNight(hour: input.calendar.component(.hour, from: date))
+        settings.nightMode && NightMode.isNight(at: date, calendar: input.calendar)
     }
 
     /// 画面のいちばん上から時計までの余白（図形で描く部屋のとき。画面の高さに対する比）。

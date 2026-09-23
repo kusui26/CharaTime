@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 import CTCore
 import CTAssets
 import CTRender
@@ -24,17 +25,14 @@ final class StandbyModel {
     let timeWarp = TimeWarp.fromArguments(ProcessInfo.processInfo.arguments)
 
     /// いま使っている部屋。選んでいなければ同梱の部屋。
-    var room: Room { state.room ?? BundledRoom.room }
+    var room: Room { state.currentRoom }
 
     /// 日課エンジンへの入力。文脈（電池）だけが端末の状態で変わる。
     ///
-    /// 文脈は `state.json` に書いたものをそのまま使う。ウィジェットも同じものを読むので、
-    /// アプリとウィジェットが同じ入力から同じ姿を出す（プラン §9 Phase 3 の 3-C ⑩）。
+    /// ウィジェットと同じ規則（`AppState.worldInput`）で、`state.json` に書いたものから組み立てる。
+    /// 同じ入力なら同じ姿になる（プラン §9 Phase 3 の 3-C ②⑩）。
     var input: WorldInput {
-        WorldInput(character: character ?? .placeholder,
-                   room: room,
-                   userSeed: state.userSeed,
-                   context: state.context)
+        state.worldInput(character: character ?? .placeholder)
     }
 
     private var character: CTCore.Character?
@@ -62,9 +60,7 @@ final class StandbyModel {
 
     private func load() {
         state = (try? StateStore.shared.loadOrCreate()) ?? StateStore.shared.load().state
-        let characters = Catalog.charactersOrEmpty()
-        guard let chosen = characters.first(where: { $0.id == state.selectedCharacterID })
-                ?? characters.first else {
+        guard let chosen = state.currentCharacter(among: Catalog.charactersOrEmpty()) else {
             loadFailure = "characters.json に 1 体も入っていません"
             return
         }
@@ -123,22 +119,26 @@ final class StandbyModel {
     /// そこに書いてある画像を見つけられなくなる。
     private func save(_ updated: Room?) {
         state.room = updated
-        if persist() {
+        if persist(reloadingWidgets: true) {
             ImageStore.shared.removeAll(keeping: state.referencedImageNames)
         }
         rebuildWorld()
     }
 
     /// 状態を App Group に書く。ウィジェットは、ここで書いたものを読む。
+    ///
+    /// `reloadingWidgets` のときは、ホーム画面のウィジェットに作り直しを頼む（3-C ⑩）。前面の
+    /// アプリからの作り直しは予算に数えない。スパイクのウィジェットは頼まない（名前を指して頼む）。
     @discardableResult
-    private func persist() -> Bool {
+    private func persist(reloadingWidgets: Bool) -> Bool {
         do {
             try StateStore.shared.save(state)
-            return true
         } catch {
             loadFailure = String(describing: error)
             return false
         }
+        if reloadingWidgets { WidgetCenter.shared.reloadTimelines(ofKind: WidgetKind.home) }
+        return true
     }
 
     // MARK: - 端末の状態
@@ -171,6 +171,7 @@ final class StandbyModel {
     ///
     /// 充電を始めた時刻は、読み直しても前の値を引き継ぐ（`ContextSnapshot.reading`）。
     /// 充電したままアプリを開き直すたびに「ありがとう」と言い直さないため。
+    /// ウィジェットの作り直しは、割り込みの答えが変わりうるときだけ頼む（1% ごとには頼まない）。
     private func readBattery() {
         #if canImport(UIKit)
         let device = UIDevice.current
@@ -178,9 +179,10 @@ final class StandbyModel {
         let level = device.batteryLevel < 0 ? nil : Double(device.batteryLevel)
         let charging = device.batteryState == .charging || device.batteryState == .full
         battery = BatteryReading(level: level, isCharging: charging)
+        let previous = state.context
         state.context = ContextSnapshot.reading(batteryLevel: level, isCharging: charging,
-                                                at: Date(), previous: state.context)
-        persist()
+                                                at: Date(), previous: previous)
+        persist(reloadingWidgets: Interrupts.mayChangeScene(from: previous, to: state.context))
         #endif
     }
 

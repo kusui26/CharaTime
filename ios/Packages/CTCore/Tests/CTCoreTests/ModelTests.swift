@@ -56,6 +56,39 @@ struct ModelTests {
         #expect(restored.depthScaleFar == 0.85)
     }
 
+    @Test("mini の絵の名前も JSON を往復する")
+    func miniPosesRoundTrip() throws {
+        var character = sampleCharacter()
+        character.miniPoses = [.idle: ["piyo_idle_01_mini", "piyo_idle_02_mini"]]
+        let data = try JSONEncoder().encode(character)
+        let restored = try JSONDecoder().decode(Character.self, from: data)
+        #expect(restored.miniPoses == character.miniPoses)
+        #expect(restored == character)
+    }
+
+    /// 取り込んだキャラ（Phase 5）や古い manifest には mini が無い。無くても読めて、空になる。
+    @Test("mini の無い JSON も読め、mini は空になる")
+    func missingMiniPosesDecodeAsEmpty() throws {
+        let data = try JSONEncoder().encode(sampleCharacter())
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "miniPoses")
+        let trimmed = try JSONSerialization.data(withJSONObject: object)
+        let restored = try JSONDecoder().decode(Character.self, from: trimmed)
+        #expect(restored.miniPoses.isEmpty)
+        #expect(restored.poses == sampleCharacter().poses)
+    }
+
+    @Test("止めた 1 枚で描くとき、歩く姿だけは立ち止まった姿にする")
+    func stillPoseStandsWhenWandering() {
+        let activities: [Activity] = [.sleep, .nap, .wander, .idle, .sit(itemId: nil), .dance(itemId: "m"),
+                                      .play(itemId: "b"), .look(itemId: nil), .eat(itemId: "s"),
+                                      .clockGreet, .happyStretch]
+        for activity in activities {
+            let expected: Pose = activity == .wander ? .idle : activity.pose
+            #expect(activity.stillPose == expected, "\(activity)")
+        }
+    }
+
     @Test("画像を持つのは、取り込んだ背景だけ")
     func backgroundImageFileName() {
         #expect(Background.bundled("room").imageFileName == nil)

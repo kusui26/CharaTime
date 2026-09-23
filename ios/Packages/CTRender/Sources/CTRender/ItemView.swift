@@ -10,7 +10,7 @@ struct ItemView: View {
     let layout: SceneLayout
     let palette: RoomPalette
 
-    /// 吊るす紐の太さ。
+    /// 吊るす紐の太さ（基準のポイント。ウィジェットでは舞台と一緒に細くなる）。
     private static let cordWidth: Double = 3
 
     var body: some View {
@@ -31,26 +31,7 @@ struct ItemView: View {
             path.move(to: ends.from)
             path.addLine(to: ends.to)
         }
-        .stroke(palette.outline, style: StrokeStyle(lineWidth: Self.cordWidth, lineCap: .round))
-    }
-}
-
-/// アイテムを奥と手前に振り分ける。
-///
-/// 画面の下にあるものほど手前にある（プラン §7.5 の「y でソート」）。
-/// キャラより下にあるアイテムは、キャラを隠す位置に描く。
-struct ItemLayer: View {
-
-    let items: [PlacedItem]
-    let definitions: [ItemKind: ItemDefinition]
-    let layout: SceneLayout
-    let palette: RoomPalette
-
-    var body: some View {
-        ForEach(items) { item in
-            if let definition = definitions[item.kind] {
-                ItemView(item: item, definition: definition, layout: layout, palette: palette)
-            }
-        }
+        .stroke(palette.outline,
+                style: StrokeStyle(lineWidth: Self.cordWidth * layout.unit, lineCap: .round))
     }
 }
