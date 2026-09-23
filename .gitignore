@@ -17,6 +17,10 @@ DerivedData/
 # 検証ループのスクリーンショット（履歴は残さない）
 .shots/
 
+# 実機の画面収録とスクリーンショット（ユーザーが置く）。壁紙に人物が写るので公開しない。
+# 画面収録は scripts/home-screen.sh count <動画> --slots small6 で数える。
+/iPhone/
+
 # このマシン固有の設定（署名の Team ID など）
 .env.local
 
