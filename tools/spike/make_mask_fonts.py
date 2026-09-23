@@ -26,6 +26,15 @@
 出典: Bryce Bostwick が 2025-05 に公開 API のみで実証（`research/E` §2.3、`research/F` §2）。
 **公式に保証された手法ではない。** 実機で確かめるためのスパイクなので、
 ここで作ったフォントは製品には入れない。
+
+**スパイク F（プラン §9 Phase 3 の 3-0b）で 3 本足した。** 本番の組み方（3-C ④ 原則 3）を確かめるため。
+
+- 数字の集まりごとの書体（{2, 7} と {0, 1, 2}）。集まりに入る数字だけが 1em の塗りつぶし。
+  秒の一の位に {2, 7} を当てると 5 秒に 2 回、秒の十の位に {0, 1, 2} を当てると 1 分のうち前半の 30 秒だけ開く
+- 数字を棒の高さで見せる書体（`CTSpikeGauge`）。数字 d が高さ (d+1)/10 em の棒になる。
+  桁の切り出しが正しいかを、スクリーンショットの棒の高さで読む
+
+**出力は毎回同じバイト列にする**（作成日時を固定する）。作り直しても、中身が変わらなければ差分が出ない。
 """
 import pathlib
 import sys
@@ -35,6 +44,11 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 
 # フォントの座標系。1000 単位を 1em とする慣習に合わせる。
 UNITS_PER_EM = 1000
+# 棒の書体の、左右の余白。隣の棒とくっつかず、1 本ずつ数えられるようにする。
+GAUGE_INSET = 150
+# フォントに書く作成・更新日時（1904 年からの秒）。固定しないと、作り直すたびにバイト列が変わる。
+# 値は、偶数・奇数の 2 本を最初に作った日時（2026-09-12 09:06:09）。この値なら 2 本はバイト単位で元どおりになる。
+FIXED_TIMESTAMP = 3872016369
 
 OUTPUT = pathlib.Path(__file__).resolve().parents[2] / "ios/CharaTimeSpikeWidget/Fonts"
 FAMILY = "CTSpikeMask"
@@ -56,17 +70,38 @@ def empty():
     return TTGlyphPen(None).glyph()
 
 
-def build(name, shows_even_digits):
-    """偶数（または奇数）の数字だけ四角を返すフォントを作る。
+def gauge_bar(digit):
+    """数字 d を、下から高さ (d+1)/10 em の棒にする。0 でも棒が見える（`:` の空と見分けられる）。"""
+    height = UNITS_PER_EM * (digit + 1) // 10
+    pen = TTGlyphPen(None)
+    pen.moveTo((GAUGE_INSET, 0))
+    pen.lineTo((UNITS_PER_EM - GAUGE_INSET, 0))
+    pen.lineTo((UNITS_PER_EM - GAUGE_INSET, height))
+    pen.lineTo((GAUGE_INSET, height))
+    pen.closePath()
+    return pen.glyph()
 
-    **すべてのグリフを 1em 幅にそろえる。** 右端 1em を切り出すだけで
-    「秒の一の位」を取り出せるようにするため。
+
+def build(name, filled_digits):
+    """`filled_digits` に入る数字だけ四角を返すマスク書体を作る。"""
+    return save(name, {digit: filled_square() for digit in filled_digits})
+
+
+def build_gauge(name):
+    """数字を棒の高さで見せる書体を作る（マスクではなく、そのまま字として描く）。"""
+    return save(name, {digit: gauge_bar(digit) for digit in range(10)})
+
+
+def save(name, digit_glyphs):
+    """数字のグリフを受け取り、残り（`:`・空白・数字の残り）を空にしてフォントを書き出す。
+
+    **すべてのグリフを 1em 幅にそろえる。** 右端から k 字目を切り出すだけで
+    「秒の一の位」「秒の十の位」などを取り出せるようにするため。
     """
     order = [".notdef", "space", "colon"] + [f"d{digit}" for digit in range(10)]
     glyphs = {glyph: empty() for glyph in order}
-    for digit in range(10):
-        if (digit % 2 == 0) == shows_even_digits:
-            glyphs[f"d{digit}"] = filled_square()
+    for digit, glyph in digit_glyphs.items():
+        glyphs[f"d{digit}"] = glyph
 
     metrics = {glyph: (UNITS_PER_EM, 0) for glyph in order}
     cmap = {ord(":"): "colon", ord(" "): "space"}
@@ -91,6 +126,7 @@ def build(name, shows_even_digits):
     })
     builder.setupOS2(sTypoAscender=UNITS_PER_EM, usWinAscent=UNITS_PER_EM, usWinDescent=0)
     builder.setupPost()
+    builder.updateHead(created=FIXED_TIMESTAMP, modified=FIXED_TIMESTAMP)
 
     OUTPUT.mkdir(parents=True, exist_ok=True)
     path = OUTPUT / f"{name}.ttf"
@@ -100,8 +136,14 @@ def build(name, shows_even_digits):
 
 def main():
     made = [
-        build(f"{FAMILY}Even", shows_even_digits=True),
-        build(f"{FAMILY}Odd", shows_even_digits=False),
+        build(f"{FAMILY}Even", filled_digits={0, 2, 4, 6, 8}),
+        build(f"{FAMILY}Odd", filled_digits={1, 3, 5, 7, 9}),
+        # スパイク F: 5 秒に 2 回の短いまばたき（入れ子の「かつ」で 0.25 秒だけ開く）
+        build(f"{FAMILY}Set27", filled_digits={2, 7}),
+        # スパイク F: 秒の十の位に当てて、1 分のうち前半の 30 秒だけ開く（時報の窓）
+        build(f"{FAMILY}Set012", filled_digits={0, 1, 2}),
+        # スパイク F: 桁の切り出しを目で確かめる
+        build_gauge("CTSpikeGauge"),
     ]
     for path in made:
         print(f"  {path.name}  {path.stat().st_size // 1024} KB")
