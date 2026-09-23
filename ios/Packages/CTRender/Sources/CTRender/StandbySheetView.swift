@@ -10,8 +10,12 @@ import CTStore
 public struct SettingsSummaryView: View {
 
     public let settings: CTStore.Settings
+    public let widget: WidgetSettings
 
-    public init(settings: CTStore.Settings) { self.settings = settings }
+    public init(settings: CTStore.Settings, widget: WidgetSettings) {
+        self.settings = settings
+        self.widget = widget
+    }
 
     public var body: some View {
         List {
@@ -21,7 +25,7 @@ public struct SettingsSummaryView: View {
                 row("夜は暗くする", settings.nightMode ? "はい" : "いいえ")
             }
             Section("ウィジェット") {
-                row("疑似アニメ", settings.widgetPseudoAnimation ? "入" : "切")
+                row("疑似アニメ", pseudoAnimationLabel)
             }
             Section {
                 Text("設定の書き換えは Phase 3 で作ります。いまは待受モードの見え方を"
@@ -30,6 +34,12 @@ public struct SettingsSummaryView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// 選んでいなければ「（既定）」を添える。既定は 3-2b で決める（プラン §9 Phase 3 の 3-C ⑪）。
+    private var pseudoAnimationLabel: String {
+        let value = widget.usesPseudoAnimation ? "入" : "切"
+        return widget.pseudoAnimation == nil ? "\(value)（既定）" : value
     }
 
     private func row(_ title: String, _ value: String) -> some View {

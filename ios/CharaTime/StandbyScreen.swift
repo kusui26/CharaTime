@@ -75,7 +75,9 @@ struct StandbyScreen: View {
         switch kind {
         case .room: EmptyView()      // 全画面で出すので、ここには来ない
         case .dayPlan: titled(DayPlanListView(input: model.input), kind.title)
-        case .settings: titled(SettingsSummaryView(settings: model.state.settings), kind.title)
+        case .settings:
+            titled(SettingsSummaryView(settings: model.state.settings, widget: model.state.widget),
+                   kind.title)
         }
     }
 

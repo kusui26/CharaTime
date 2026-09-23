@@ -133,6 +133,17 @@ public enum Background: Codable, Sendable, Equatable {
     case photo(fileName: String)
     /// ユーザーのホーム画面のスクリーンショット（メモの「アプリが並んでいる画面」）。
     case homeScreenShot(fileName: String)
+
+    /// 取り込んだ画像のファイル名（`ImageStore` の名前）。同梱の部屋は nil。
+    ///
+    /// どの背景が画像を持つかは、ここだけで決める。描くときも、使わない画像を
+    /// 片づけるときも、これを見る（片づけの見落としは、利用者の画像を消すことになる）。
+    public var imageFileName: String? {
+        switch self {
+        case .bundled: nil
+        case .photo(let fileName), .homeScreenShot(let fileName): fileName
+        }
+    }
 }
 
 public struct Room: Codable, Sendable, Equatable {
@@ -185,14 +196,38 @@ public struct ContextSnapshot: Codable, Sendable, Equatable {
     public var batteryLevel: Double?
     public var isCharging: Bool?
     public var stepCount: Int?
+    /// 読んだ時刻。古い文脈は割り込みに使わない（`Interrupts.freshnessSeconds`）。
     public var capturedAt: Date
+    /// 充電を始めた時刻。充電していないとき、始めた時刻が分からないときは nil。
+    ///
+    /// 読んだ時刻とは分けて持つ。充電したまま読み直すたびに「ありがとう」と言い直さないため
+    /// （`reading(batteryLevel:isCharging:at:previous:)`）。
+    public var chargingSince: Date?
 
     public init(batteryLevel: Double? = nil, isCharging: Bool? = nil,
-                stepCount: Int? = nil, capturedAt: Date) {
+                stepCount: Int? = nil, capturedAt: Date, chargingSince: Date? = nil) {
         self.batteryLevel = batteryLevel
         self.isCharging = isCharging
         self.stepCount = stepCount
         self.capturedAt = capturedAt
+        self.chargingSince = chargingSince
+    }
+
+    /// 電池を読み直したときの、次の文脈（プラン §9 Phase 3 の 3-C ⑩）。
+    ///
+    /// 充電を始めた時刻は、前の文脈で充電していなかったとき（前の文脈が無いときも）だけ、
+    /// 読んだ時刻にする。前から充電していれば、前の値を引き継ぐ。歩数は電池と一緒には
+    /// 読まないので、前の値を引き継ぐ。
+    public static func reading(batteryLevel: Double?, isCharging: Bool?, at time: Date,
+                               previous: ContextSnapshot?) -> ContextSnapshot {
+        let wasCharging = previous?.isCharging == true
+        let since: Date? = switch (isCharging == true, wasCharging) {
+        case (false, _):    nil
+        case (true, true):  previous?.chargingSince
+        case (true, false): time
+        }
+        return ContextSnapshot(batteryLevel: batteryLevel, isCharging: isCharging,
+                               stepCount: previous?.stepCount, capturedAt: time, chargingSince: since)
     }
 }
 

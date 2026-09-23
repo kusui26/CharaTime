@@ -14,6 +14,12 @@ public enum Interrupts {
     public static let lowBatteryThreshold: Double = 0.15
     /// 充電を始めてから喜んでいる時間。
     public static let chargingReactionSeconds: TimeInterval = 180
+    /// 文脈がこれより古ければ、電池の割り込みに使わない。
+    ///
+    /// ウィジェットは、本体アプリが最後に読んだ電池の値を使う（プラン §9 Phase 3 の 3-C ⑩）。
+    /// アプリを開かないあいだに値は古くなるので、朝の 10% のまま一日じゅう歩かせない、
+    /// ということにならないよう 1 時間で信用しなくする。電池は 1 時間で大きく変わりうる。
+    public static let freshnessSeconds: TimeInterval = 3600
 
     public static func apply(to state: SceneState, context: ContextSnapshot?) -> SceneState {
         guard let context else { return state }
@@ -22,11 +28,12 @@ public enum Interrupts {
     }
 
     /// 充電を始めた直後だけ喜ぶ。ずっと喜んでいるとうるさいので時間で切る。
+    ///
+    /// 数えるのは充電を始めた時刻から。読み直した時刻からではない（読み直すたびに喜ばない）。
     private static func chargingReaction(to state: SceneState,
                                          context: ContextSnapshot) -> SceneState? {
-        let sinceCapture = state.time.timeIntervalSince(context.capturedAt)
-        guard context.isCharging == true,
-              sinceCapture >= 0, sinceCapture < chargingReactionSeconds,
+        guard context.isCharging == true, let since = context.chargingSince,
+              (0..<chargingReactionSeconds).contains(state.time.timeIntervalSince(since)),
               !state.activity.isAsleep else { return nil }
         var result = state
         result.changeActivity(to: .happyStretch)
@@ -35,9 +42,11 @@ public enum Interrupts {
     }
 
     /// 電池が少ないときは歩き回らない。吹き出しは出さない（急かさないため）。
+    /// 1 時間より古い値では鈍らせない（`freshnessSeconds`）。
     private static func lowBatterySlowdown(of state: SceneState,
                                            context: ContextSnapshot) -> SceneState? {
-        guard let level = context.batteryLevel, level < lowBatteryThreshold,
+        guard (0..<freshnessSeconds).contains(state.time.timeIntervalSince(context.capturedAt)),
+              let level = context.batteryLevel, level < lowBatteryThreshold,
               context.isCharging != true, case .wander = state.activity else { return nil }
         var result = state
         result.changeActivity(to: .idle)

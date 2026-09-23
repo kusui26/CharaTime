@@ -203,7 +203,7 @@ struct SceneEngineTests {
     func celebratesCharging() {
         let time = Self.at(14, 22)
         let charging = Self.world(context: ContextSnapshot(batteryLevel: 0.4, isCharging: true,
-                                                           capturedAt: time))
+                                                           capturedAt: time, chargingSince: time))
         let state = SceneEngine.sceneState(at: time.addingTimeInterval(30), input: charging)
         #expect(state.activity == .happyStretch)
         #expect(state.bubble?.text == "ありがとう")
@@ -217,7 +217,7 @@ struct SceneEngineTests {
     func doesNotCelebrateWhileAsleep() {
         let time = Self.at(3, 10)
         let charging = Self.world(context: ContextSnapshot(batteryLevel: 0.4, isCharging: true,
-                                                           capturedAt: time))
+                                                           capturedAt: time, chargingSince: time))
         let state = SceneEngine.sceneState(at: time.addingTimeInterval(30), input: charging)
         #expect(state.activity.isAsleep)
     }
@@ -234,7 +234,8 @@ struct SceneEngineTests {
         let offsetsSeconds = [0.37, 12.8, 41.15, 77.6]
         for minute in stride(from: 0, to: 24 * 60, by: 7) {
             let time = Self.at(minute / 60, minute % 60)
-            let contexts = [ContextSnapshot(batteryLevel: 0.4, isCharging: true, capturedAt: time),
+            let contexts = [ContextSnapshot(batteryLevel: 0.4, isCharging: true,
+                                            capturedAt: time, chargingSince: time),
                             ContextSnapshot(batteryLevel: 0.05, isCharging: false, capturedAt: time)]
             for context in contexts {
                 for offset in offsetsSeconds {
