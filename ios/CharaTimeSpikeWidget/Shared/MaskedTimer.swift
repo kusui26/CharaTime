@@ -73,14 +73,20 @@ struct MaskFontTimer: View {
     }
 }
 
-/// マスク書体の名前。`tools/spike/make_mask_fonts.py` が作る 2 本で、
-/// どちらも全字が 1em 幅・行の高さも 1em ちょうど。
+/// マスク書体の名前。`tools/spike/make_mask_fonts.py` が作る。
+/// どれも全字が 1em 幅・行の高さも 1em ちょうど。
 enum MaskFont {
 
     /// 偶数の数字（0,2,4,6,8）が 1em の塗りつぶし、奇数は空。
     static let even = "CTSpikeMaskEven"
     /// その裏返し。
     static let odd = "CTSpikeMaskOdd"
+    /// 2 と 7 だけが塗りつぶし。秒の一の位に当てると 5 秒に 2 回開く（スパイク F のまばたき）。
+    static let set27 = "CTSpikeMaskSet27"
+    /// 0・1・2 だけが塗りつぶし。秒の十の位に当てると毎分の前半 30 秒だけ開く（スパイク F の時報の窓）。
+    static let set012 = "CTSpikeMaskSet012"
+    /// マスクではなく、数字 d を高さ (d+1)/10 em の棒で描く（スパイク F で桁の切り出しを目で確かめる）。
+    static let gauge = "CTSpikeGauge"
 
     static func name(showsOnEvenSeconds: Bool) -> String {
         showsOnEvenSeconds ? even : odd

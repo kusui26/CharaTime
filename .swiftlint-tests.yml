@@ -9,6 +9,8 @@ included:
   - ios/Packages/CTAssets/Tests
   - ios/Packages/CTRender/Tests
   - ios/Packages/CTStore/Tests
+  # シミュレータのホーム画面を操作するロボット（UI テストのターゲット。scripts/home-screen.sh が使う）
+  - ios/HomeScreenRobot
 
 line_length:
   warning: 120

@@ -16,6 +16,8 @@ import SwiftUI
 /// | C | マスクフォントで 1 秒ごとの点滅 | 非公式。Go / Conditional Go の分かれ目 |
 /// | D | 0.25 秒ずらした 4 本で 4fps | 非公式。C が動いてから見る |
 /// | E | C・D が点かなかった理由の切り分け | 原因を見分け、直し方を 4 通り試す（2026-09-23 追加） |
+/// | F | 本番の組み方の確かめ（タイマーの本数、0 時起点、かつ、エントリ切替） | Phase 3 の 3-0b（2026-09-23 追加） |
+/// | G | 背景を透明にしたときの見え方 | Phase 3 の 3-0c（2026-09-23 追加） |
 ///
 /// **A〜D の描画は変えない。** E の結果と見比べる対照として、実機で観察したときのまま残す。
 struct SpikeEntry: TimelineEntry {
@@ -165,6 +167,135 @@ struct ProbeSpikeWidget: Widget {
     }
 }
 
+// MARK: - F タイマーの本数（Phase 3 の 3-0b）
+
+/// 0 時にだけ作り直すタイムライン。点滅はタイマーが受け持つので、エントリは 1 つでよい。
+///
+/// 途中で作り直されると描き直しが混ざり、戻った直後の測りを乱す。タイマーは 0 時から 36 時間
+/// 数えるので（D-18）、0 時に作り直せば途切れない。
+struct MidnightProvider: TimelineProvider {
+    func placeholder(in context: Context) -> SpikeEntry { SpikeEntry(date: .now, step: 0) }
+    func getSnapshot(in context: Context, completion: @escaping (SpikeEntry) -> Void) {
+        completion(SpikeEntry(date: .now, step: 0))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SpikeEntry>) -> Void) {
+        let now = Date()
+        let tomorrow = MidnightClock.startOfDay(for: now).addingTimeInterval(Self.daySeconds)
+        completion(Timeline(entries: [SpikeEntry(date: now, step: 0)], policy: .after(tomorrow)))
+    }
+
+    /// 次の 0 時までの目安。夏時間の日は 1 時間ずれるが、作り直しが 1 時間ずれるだけで困らない。
+    private static let daySeconds: TimeInterval = 86_400
+}
+
+/// タイマーを決まった本数だけ抱えた F の小。本数ごとに型を分ける
+/// （WidgetKit のウィジェットは引数なしで作られるので、本数は型に持たせる）。
+protocol TimerCountSpikeWidget: Widget {
+    static var count: Int { get }
+}
+
+extension TimerCountSpikeWidget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeF\(Self.count)", provider: MidnightProvider()) { entry in
+            TimerCountBoard(count: Self.count, entryDate: entry.date)
+                .containerBackground(ProbeLayout.paper, for: .widget)
+        }
+        .configurationDisplayName(Self.displayName)
+        .description(Self.summary)
+        .supportedFamilies([.systemSmall])
+    }
+
+    /// **表示名は `String` に組み立ててから渡す。** `configurationDisplayName("… \(count) …")` と
+    /// 補間を直接書くと書式付きの文字列（`LocalizedStringKey`）になり、WidgetKit が実行時に止める
+    /// （「Formatted text for `configurationDisplayName` is not supported」。2026-09-23、拡張ごと落ちた）。
+    private static var displayName: String { "スパイク F \(count) 本" }
+    private static var summary: String { "タイマーを \(count) 本だけ抱えます。ホーム画面に戻った直後の動き出しを比べます。" }
+}
+
+struct TimerCount1SpikeWidget: TimerCountSpikeWidget { static let count = 1 }
+struct TimerCount2SpikeWidget: TimerCountSpikeWidget { static let count = 2 }
+struct TimerCount4SpikeWidget: TimerCountSpikeWidget { static let count = 4 }
+struct TimerCount6SpikeWidget: TimerCountSpikeWidget { static let count = 6 }
+struct TimerCount8SpikeWidget: TimerCountSpikeWidget { static let count = 8 }
+struct TimerCount14SpikeWidget: TimerCountSpikeWidget { static let count = 14 }
+
+// MARK: - F 組み方（Phase 3 の 3-0b）
+
+/// 1 分ごとのエントリを 1 時間ぶん。エントリの境目は毎分 0 秒にそろえる。
+///
+/// 台はエントリが替わるたびに左右を入れ替える。境目の時刻が分かっているので、画面収録の
+/// どこを見ればよいかが決まる。1 分刻みは公式の目安（5 分以上）より細かいが、B で拾われると分かっている。
+struct MinuteProvider: TimelineProvider {
+
+    static let entryCount = 60
+    static let spacingSeconds: TimeInterval = 60
+
+    func placeholder(in context: Context) -> SpikeEntry { SpikeEntry(date: .now, step: 0) }
+    func getSnapshot(in context: Context, completion: @escaping (SpikeEntry) -> Void) {
+        completion(SpikeEntry(date: .now, step: 0))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SpikeEntry>) -> Void) {
+        let now = Date()
+        let minute = Calendar.current.dateInterval(of: .minute, for: now)?.start ?? now
+        let entries = (0..<Self.entryCount).map { index in
+            let date = index == 0 ? now : minute.addingTimeInterval(Double(index) * Self.spacingSeconds)
+            return SpikeEntry(date: date, step: Calendar.current.component(.minute, from: date) % 2)
+        }
+        completion(Timeline(entries: entries, policy: .atEnd))
+    }
+}
+
+struct DesignSpikeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeFDesign", provider: MinuteProvider()) { entry in
+            DesignBoard(entryDate: entry.date, movedRight: entry.step == 1)
+                .containerBackground(ProbeLayout.paper, for: .widget)
+        }
+        .configurationDisplayName("スパイク F 組み方")
+        .description("0 時起点、桁の切り出し、入れ子の「かつ」、エントリ切替を確かめます。")
+        .supportedFamilies([.systemLarge])
+    }
+}
+
+// MARK: - G 透け方（Phase 3 の 3-0c）
+
+struct ClearBackgroundSpikeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeGClear", provider: StaticProvider()) { _ in
+            ClearProbe(label: "Color.clear").containerBackground(Color.clear, for: .widget)
+        }
+        .configurationDisplayName("スパイク G 透明")
+        .description("背景を Color.clear にします。壁紙が透けるかを見ます。")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+struct EmptyBackgroundSpikeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeGEmpty", provider: StaticProvider()) { _ in
+            ClearProbe(label: "EmptyView").containerBackground(for: .widget) { EmptyView() }
+        }
+        .configurationDisplayName("スパイク G 空")
+        .description("背景を EmptyView にします。壁紙が透けるかを見ます。")
+        .supportedFamilies([.systemSmall])
+    }
+}
+
+struct AlmostClearBackgroundSpikeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeGAlmostClear", provider: StaticProvider()) { _ in
+            ClearProbe(label: "白 0.0000001")
+                .containerBackground(Color.white.opacity(Self.almostZeroOpacity), for: .widget)
+        }
+        .configurationDisplayName("スパイク G ほぼ透明")
+        .description("背景を、ほぼ透明な白にします。壁紙が透けるかを見ます。")
+        .supportedFamilies([.systemSmall])
+    }
+
+    /// `research/B` §2.2 が挙げた 3 通りのうちの 1 つ。0 だと「透明」と同じ扱いになりうるので、わずかに残す。
+    private static let almostZeroOpacity = 0.000_000_1
+}
+
 @main
 struct SpikeWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -173,5 +304,15 @@ struct SpikeWidgetBundle: WidgetBundle {
         BlinkSpikeWidget()
         FastSpikeWidget()
         ProbeSpikeWidget()
+        TimerCount1SpikeWidget()
+        TimerCount2SpikeWidget()
+        TimerCount4SpikeWidget()
+        TimerCount6SpikeWidget()
+        TimerCount8SpikeWidget()
+        TimerCount14SpikeWidget()
+        DesignSpikeWidget()
+        ClearBackgroundSpikeWidget()
+        EmptyBackgroundSpikeWidget()
+        AlmostClearBackgroundSpikeWidget()
     }
 }

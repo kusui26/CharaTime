@@ -108,6 +108,10 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
   ぴったりの枠になるが、ウィジェットの中では枠の幅が有限にならず、字が描かれない。
   その幅に `GeometryReader` を当てると拡張ごと落ちる（スパイク C・D・E の教訓）。
   `.frame(width:)` で最長の字数ぶんの枠を決め、寄せは `multilineTextAlignment` で指定する。
+- **ウィジェットの `configurationDisplayName` / `description` に文字列補間を直接書かない。**
+  `"… \(n) …"` は書式付きの文字列になり、WidgetKit が実行時に止める（拡張ごと落ちる）。`String` に組み立ててから渡す。
+- **UI テストを走らせても、アプリは入れ直されない。** ウィジェットを足したら `scripts/home-screen.sh build` で
+  入れ直す。入れ直さないと、足したウィジェットがギャラリーに出てこない。
 - **実行中のスクリプトを書き換えない。** bash は実行しながら読むので、構文エラーになる。
 
 **import**
@@ -184,8 +188,21 @@ scripts/ios-loop.sh --test-only  # scripts/check.sh と同じ（パッケージ�
 **核心は「スクリーンショットを撮って、Claude 自身がそれを見る」こと。** `.shots/latest.png` を
 Read すれば、自分が書いた UI を目で確認して直せます。
 
+**ホーム画面のウィジェットも、シミュレータで置いて撮って数えられる**（`scripts/home-screen.sh`、プラン D-24）。
+
+```bash
+scripts/home-screen.sh build                         # アプリを入れ直す（ウィジェットを直したら毎回）
+scripts/home-screen.sh place --clear "スパイク F 4 本@小"   # 置く（名前の一覧は gallery）
+scripts/home-screen.sh shot                          # ウィジェットのページを撮る → .shots/home/latest.png
+scripts/home-screen.sh record --resume 5             # 行って戻るを挟んで収録し、点滅を数える
+scripts/home-screen.sh count <実機の動画> --slots small6   # 実機の画面収録も同じ物差しで数える
+```
+
+ロボットの操作は 1 回 30 秒〜1 分半（xcodebuild の立ち上げ込み）。止まったら `.shots/home/robot.log` と
+`dump-failure.txt` を読み、表示の文字が変わっていれば `HomeScreenRobot/RobotSupport.swift` の `SpringBoardText` を直す。
+
 **シミュレータで確認できること**: レイアウト、配色、Dynamic Type、ダークモード、
-ウィジェットのプレビュー（`#Preview(as:)`）。
+ウィジェットのプレビュー（`#Preview(as:)`）、ホーム画面のウィジェットの見た目と点滅（上の道具）。
 
 **実機でしか確認できないこと**: ウィジェットの実際の更新間隔、透過ウィジェットのずれ、
 StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 のスパイク）。
@@ -210,8 +227,10 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 
 次の山は **Phase 3**（ホーム画面ウィジェット）。**Phase 2**（キャラ 5 体・部屋・アイテム）より先に行います（D-16）。
 作業の順番・設計・確かめ方は、プラン §9 の Phase 3（3-A〜3-I）にあります。
-スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は、E の作り（マスク書体、
-`DigitCut.boundedTrailing`、丸 1 日数える設定）を本番へ移してから消します（3-2b）。
+**3-0 は、道具（D-24）とシミュレータでの測定まで済み**（スパイク F・G。`docs/260912_spike.md` 3-7）。
+タイマーの本数の上限（D-17）は、実機の F の画面収録で決めます。
+スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は、E・F の作り（マスク書体、
+右から k 字目の切り出し `GlyphWindow`、0 時起点 `MidnightClock`）を本番へ移してから消します（3-2b）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。

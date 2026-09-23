@@ -33,6 +33,9 @@
 	<array>
 		<string>CTSpikeMaskEven.ttf</string>
 		<string>CTSpikeMaskOdd.ttf</string>
+		<string>CTSpikeMaskSet27.ttf</string>
+		<string>CTSpikeMaskSet012.ttf</string>
+		<string>CTSpikeGauge.ttf</string>
 	</array>
 </dict>
 </plist>

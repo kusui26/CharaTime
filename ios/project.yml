@@ -86,6 +86,9 @@ targets:
         UIAppFonts:
           - CTSpikeMaskEven.ttf
           - CTSpikeMaskOdd.ttf
+          - CTSpikeMaskSet27.ttf
+          - CTSpikeMaskSet012.ttf
+          - CTSpikeGauge.ttf
         # 待受モードは画面を点けたままにする。表示中だけ true に切り替える
         # （プラン §4.4）ので、ここでは既定のままにしておく。
     entitlements:
@@ -149,8 +152,32 @@ targets:
         UIAppFonts:
           - CTSpikeMaskEven.ttf
           - CTSpikeMaskOdd.ttf
+          - CTSpikeMaskSet27.ttf
+          - CTSpikeMaskSet012.ttf
+          - CTSpikeGauge.ttf
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  # シミュレータのホーム画面を操作するロボット（プラン §9 Phase 3 の 3-0d、Q-16）。
+  #
+  # **テストではなく道具。** テストメソッド 1 つが操作 1 つ（置く・外す・ページを出す）に当たり、
+  # scripts/home-screen.sh が選んで呼ぶ。アプリにも CI にも入らない。
+  #
+  # 本体アプリを「試す相手」にしておくと、ロボットをビルドするときにアプリも一緒にビルドされる。
+  # **テストを走らせてもアプリは入れ直されない**（xcodebuild は試す相手を起動するときだけ入れる。
+  # ロボットは起動しない）。入れ直すのは scripts/home-screen.sh build の役目。
+  HomeScreenRobot:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: HomeScreenRobot
+    dependencies:
+      - target: CharaTime
+    settings:
+      groups: [iPhoneOnly]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.charatime.robot
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   CharaTime:
@@ -161,3 +188,11 @@ schemes:
         CharaTimeSpikeWidgetExtension: all
     run:
       config: Debug
+  # ロボット専用。CharaTime のスキームに混ぜると、ふだんのビルドが UI テストの分だけ重くなる。
+  HomeScreenRobot:
+    build:
+      targets:
+        HomeScreenRobot: [test]
+    test:
+      config: Debug
+      targets: [HomeScreenRobot]
