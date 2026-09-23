@@ -12,6 +12,16 @@ enum SpikeDial {
     static let dotSize: Double = 26
     static let dotSpacing: Double = 14
 
+    /// D・δ で 4 本の起点をずらす秒数。4 本を 0.25 秒ずつずらすと、
+    /// 点いている数が 0.25 秒ごとに変わる。1 秒に 4 回変われば 4fps。
+    static let phaseSeconds: Double = 0.25
+
+    /// タイマーに数えさせる長さ。1 時間。
+    ///
+    /// `showsHours: false` なので「0:00」から「60:00」まで、分と秒だけで数える。
+    /// **置いてから 1 時間たつと止まって見える**（タイムラインが作り直されるまで）。
+    static let timerSpanSeconds: TimeInterval = 3600
+
     static let lit = Color(red: 0.878, green: 0.541, blue: 0.306)      // #E08A4E
     static let unlit = Color(red: 0.902, green: 0.855, blue: 0.788)    // #E6DAC9
     static let ink = Color(red: 0.231, green: 0.169, blue: 0.169)      // #3B2B2B
@@ -41,6 +51,8 @@ struct SpikeFrame<Content: View>: View {
     let title: String
     let note: String
     let entryDate: Date
+    /// 秒のカウンタが数える長さ。A〜D は 1 時間のまま、1 日数える α を載せる E は 1 日。
+    var counterSpanSeconds = SpikeDial.timerSpanSeconds
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -48,7 +60,7 @@ struct SpikeFrame<Content: View>: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(title).font(.system(size: 13, weight: .bold, design: .rounded))
                 Spacer()
-                Text(timerInterval: entryDate...entryDate.addingTimeInterval(3600),
+                Text(timerInterval: entryDate...entryDate.addingTimeInterval(counterSpanSeconds),
                      countsDown: false, showsHours: false)
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .monospacedDigit()

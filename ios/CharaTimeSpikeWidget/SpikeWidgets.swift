@@ -15,6 +15,9 @@ import SwiftUI
 /// | B | タイムラインのエントリ切替 | Apple 公式の方式。**最後の砦**。これが動かなければ何も動かない |
 /// | C | マスクフォントで 1 秒ごとの点滅 | 非公式。Go / Conditional Go の分かれ目 |
 /// | D | 0.25 秒ずらした 4 本で 4fps | 非公式。C が動いてから見る |
+/// | E | C・D が点かなかった理由の切り分け | 原因を見分け、直し方を 4 通り試す（2026-09-23 追加） |
+///
+/// **A〜D の描画は変えない。** E の結果と見比べる対照として、実機で観察したときのまま残す。
 struct SpikeEntry: TimelineEntry {
     let date: Date
     /// B でだけ使う。エントリごとに動かす ● の位置。
@@ -121,10 +124,6 @@ struct BlinkSpikeWidget: Widget {
 
 struct FastSpikeWidget: Widget {
 
-    /// ずらす秒数。4 本を 0.25 秒ずつずらすと、点いている ● の数が
-    /// 0.25 秒ごとに変わる。1 秒に 4 回変われば 4fps。
-    static let phaseSeconds: Double = 0.25
-
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "CTSpikeD", provider: StaticProvider()) { entry in
             SpikeFrame(title: "D 4fps", note: "点いている ● の数が増えたり減ったりする",
@@ -132,7 +131,7 @@ struct FastSpikeWidget: Widget {
                 HStack(spacing: SpikeDial.dotSpacing) {
                     ForEach(0..<SpikeDial.dotCount, id: \.self) { index in
                         MaskedTimerDot(anchor: entry.date,
-                                       offsetSeconds: Double(index) * Self.phaseSeconds)
+                                       offsetSeconds: Double(index) * SpikeDial.phaseSeconds)
                     }
                 }
             }
@@ -144,6 +143,28 @@ struct FastSpikeWidget: Widget {
     }
 }
 
+// MARK: - E C・D が点かなかった理由の切り分け
+
+/// 1 枚の大ウィジェットに、原因を見分ける 4 行（①〜④）と、直し方を試す 4 行（α〜δ）を並べる。
+/// 中身は `ProbeBoard`。本体アプリの下見画面（`-CTScreen spike`）にも同じものが出る。
+///
+/// **地の色だけは E で決める。** 字の並びを細かく見比べるので、明暗どちらの外観でも
+/// 同じ明るい地にする。A〜D の地（`.fill.tertiary`）は対照として変えない。
+struct ProbeSpikeWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "CTSpikeE", provider: StaticProvider()) { entry in
+            SpikeFrame(title: "E 切り分け", note: "1 秒ずらして 2 枚撮る", entryDate: entry.date,
+                       counterSpanSeconds: DigitCut.dailySpanSeconds) {
+                ProbeBoard(anchor: entry.date)
+            }
+            .containerBackground(ProbeLayout.paper, for: .widget)
+        }
+        .configurationDisplayName("スパイク E 切り分け")
+        .description("C・D が点かない理由を見分け、直し方を 4 通り試します。")
+        .supportedFamilies([.systemLarge])
+    }
+}
+
 @main
 struct SpikeWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -151,5 +172,6 @@ struct SpikeWidgetBundle: WidgetBundle {
         SteppingSpikeWidget()
         BlinkSpikeWidget()
         FastSpikeWidget()
+        ProbeSpikeWidget()
     }
 }
