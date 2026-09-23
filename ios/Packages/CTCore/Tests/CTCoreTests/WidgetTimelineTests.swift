@@ -54,6 +54,22 @@ struct WidgetTimelineTests {
         #expect(dates.last == TestClock.today(6, 0))
     }
 
+    @Test("その時刻以前の最後の升目は、升目の上ならその時刻、あいだなら前の升目")
+    func gridPointAtOrBefore() {
+        let calendar = TestClock.tokyo
+        #expect(WidgetTimeline.gridPoint(atOrBefore: TestClock.today(10, 0), calendar: calendar)
+                == TestClock.today(10, 0))
+        #expect(WidgetTimeline.gridPoint(atOrBefore: TestClock.today(10, 4, 59.9), calendar: calendar)
+                == TestClock.today(10, 0))
+        #expect(WidgetTimeline.gridPoint(atOrBefore: TestClock.today(0, 0, 0.5), calendar: calendar)
+                == TestClock.today(0, 0))
+        // 夏時間の日も、その日の 0 時から数えた升目（1:55 の次は 3:00）。
+        let newYork = TestClock.newYork
+        #expect(WidgetTimeline.gridPoint(atOrBefore: TestClock.date(2026, 3, 8, 3, 2, in: newYork),
+                                         calendar: newYork)
+                == TestClock.date(2026, 3, 8, 3, 0, in: newYork))
+    }
+
     // MARK: - 日付の境目
 
     @Test("日付をまたぐときは、翌日の 0 時を通って続く")

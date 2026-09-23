@@ -101,6 +101,55 @@ struct ContextTests {
         #expect(after.activity == .wander)
     }
 
+    // MARK: - ウィジェットを作り直すか
+
+    private func reading(_ level: Double, charging: Bool = false, since: Date? = nil,
+                         at offsetSeconds: TimeInterval = 0) -> ContextSnapshot {
+        ContextSnapshot(batteryLevel: level, isCharging: charging,
+                        capturedAt: noon.addingTimeInterval(offsetSeconds), chargingSince: since)
+    }
+
+    @Test("電池が少ないとみなすのは、しきい値を下回り、充電していないときだけ")
+    func lowBatteryNeedsLevelAndNoCharging() {
+        #expect(reading(0.14).isLowBattery)
+        #expect(!reading(0.15).isLowBattery)
+        #expect(!reading(0.05, charging: true).isLowBattery)
+        #expect(!ContextSnapshot(capturedAt: noon).isLowBattery)       // 読めていない
+    }
+
+    @Test("初めて読んだときは、作り直す")
+    func firstReadingChangesTheScene() {
+        #expect(Interrupts.mayChangeScene(from: nil, to: reading(0.5)))
+        #expect(!Interrupts.mayChangeScene(from: nil, to: nil))
+    }
+
+    /// 充電中は 1% ごとに知らせが来る。そのたびに 73 件を描き直させない。
+    @Test("残りが少し減っただけでは、作り直さない")
+    func smallLevelChangesAreIgnored() {
+        #expect(!Interrupts.mayChangeScene(from: reading(0.50), to: reading(0.49, at: 120)))
+        #expect(!Interrupts.mayChangeScene(from: reading(0.8, charging: true, since: noon),
+                                           to: reading(0.81, charging: true, since: noon, at: 60)))
+    }
+
+    @Test("充電を始めたとき・やめたときは、作り直す")
+    func chargingChangesTheScene() {
+        #expect(Interrupts.mayChangeScene(from: reading(0.5), to: reading(0.5, charging: true, since: noon)))
+        #expect(Interrupts.mayChangeScene(from: reading(0.5, charging: true, since: noon), to: reading(0.5)))
+    }
+
+    @Test("電池が少なくなったとき・戻ったときは、作り直す")
+    func crossingTheThresholdChangesTheScene() {
+        #expect(Interrupts.mayChangeScene(from: reading(0.16), to: reading(0.14, at: 60)))
+        #expect(Interrupts.mayChangeScene(from: reading(0.14), to: reading(0.14, charging: true, since: noon)))
+    }
+
+    /// 鈍るのは読んでから 1 時間だけ。読み直した時刻を渡さないと、ウィジェットだけ先に元気になる。
+    @Test("電池が少ないあいだは、読み直しただけでも作り直す")
+    func rereadingWhileLowChangesTheScene() {
+        #expect(Interrupts.mayChangeScene(from: reading(0.10), to: reading(0.10, at: 600)))
+        #expect(!Interrupts.mayChangeScene(from: reading(0.40), to: reading(0.40, at: 600)))
+    }
+
     @Test("充電中でも、始めた時刻が分からなければ喜ばない")
     func noCelebrationWithoutStart() {
         let context = ContextSnapshot(batteryLevel: 0.4, isCharging: true, capturedAt: noon)

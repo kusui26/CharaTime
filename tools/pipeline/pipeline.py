@@ -36,6 +36,18 @@ CHARACTER_SCALE = 1.5
 CHARACTER_WIDTH = int(chara.VIEWBOX[2] * CHARACTER_SCALE)     # 195
 CHARACTER_HEIGHT = int(chara.VIEWBOX[3] * CHARACTER_SCALE)    # 270
 
+# ウィジェット用の小さい絵（mini。プラン §5.3、D-20）の大きさ（@1x、ポイント）。
+#
+# ウィジェット拡張のメモリは約 30 MB。待受モードの絵は @3x で 585x810 画素、展開すると
+# 1 コマ約 1.9 MB になる。ウィジェットで描くいちばん大きな絵（小の近影、枠の高さ 126pt）に
+# 合わせて焼けば、@3x で 273x378 画素・約 0.41 MB で済み、引き伸ばしもしない。
+# 0.7 倍にするのは、どの倍率でも画素数が整数になり、枠と接地線の割合が待受モードの絵と
+# 1 画素もずれないため（2/3 倍だと @1x・@2x で端数が出る）。
+MINI_SCALE = 0.7
+MINI_WIDTH = int(round(chara.VIEWBOX[2] * MINI_SCALE))       # 91
+MINI_HEIGHT = int(round(chara.VIEWBOX[3] * MINI_SCALE))      # 126
+MINI_SUFFIX = "_mini"
+
 # アイテムは接地線を絵の下端にそろえる。上端をそろえるのは吊り下げるものだけ。
 ITEM_STROKE_MARGIN = 4
 # アイテムも輪郭線が枠の外へ出るので、四方に余白を足して焼く。
@@ -51,10 +63,34 @@ def _asset_name(character, pose, index):
     return "%s_%s_%02d" % (character, pose, index + 1)
 
 
+def _mini_name(name):
+    """`piyo_walk_03_mini` の形。characters.json の miniPoses が呼ぶ名前と一致させる。"""
+    return name + MINI_SUFFIX
+
+
+def _bake_frames(character, frames, names, cell, catalog_dir, work):
+    """1 体ぶんのコマを、倍率ごとに 1 枚のシートへ焼き、切り分けて imageset にする。"""
+    width, height = cell
+    per_scale = {}
+    for scale, suffix in catalog.SCALES:
+        svgs = _character_svgs(character, frames, width * scale, height * scale)
+        # 切り出したコマ（`<名前>@3x.png`）と同じ名前にしない。シートを消すときに一緒に消えるため。
+        sheet_path = work / ("sheet-%s%s.png" % (names[0], suffix))
+        rasterize.sheet(svgs, width * scale, height * scale, str(sheet_path))
+        per_scale[scale] = rasterize.slice_sheet(
+            sheet_path, names, width * scale, height * scale, work, suffix)
+        sheet_path.unlink()
+    for index, name in enumerate(names):
+        catalog.write_imageset(
+            catalog_dir, name,
+            [(scale, per_scale[scale][index]) for scale, _ in catalog.SCALES])
+
+
 def build_characters(check_only=False):
     frames = [(pose, frame) for pose, fs in chara.FRAMES for frame in fs]
     names_by_character = {}
     poses_by_character = {}
+    mini_by_character = {}
 
     for character in chara.P:
         poses = {}
@@ -62,6 +98,8 @@ def build_characters(check_only=False):
             count = sum(1 for p, _ in frames if p == pose)
             poses[pose] = [_asset_name(character, pose, i) for i in range(count)]
         poses_by_character[character] = poses
+        mini_by_character[character] = {pose: [_mini_name(n) for n in names]
+                                        for pose, names in poses.items()}
         names_by_character[character] = [n for names in poses.values() for n in names]
 
     if check_only:
@@ -74,24 +112,15 @@ def build_characters(check_only=False):
 
     for character in chara.P:
         names = names_by_character[character]
-        per_scale = {}
-        for scale, suffix in catalog.SCALES:
-            width, height = CHARACTER_WIDTH * scale, CHARACTER_HEIGHT * scale
-            svgs = _character_svgs(character, [f for _, f in frames], width, height)
-            sheet_path = work / ("%s%s.png" % (character, suffix))
-            rasterize.sheet(svgs, width, height, str(sheet_path))
-            per_scale[scale] = rasterize.slice_sheet(
-                sheet_path, names, width, height, work, suffix)
-            sheet_path.unlink()
-        for index, name in enumerate(names):
-            catalog.write_imageset(
-                catalog_dir, name,
-                [(scale, per_scale[scale][index]) for scale, _ in catalog.SCALES])
-        print("  %-6s %2d 枚" % (character, len(names)))
+        drawn = [f for _, f in frames]
+        _bake_frames(character, drawn, names, (CHARACTER_WIDTH, CHARACTER_HEIGHT), catalog_dir, work)
+        _bake_frames(character, drawn, [_mini_name(n) for n in names], (MINI_WIDTH, MINI_HEIGHT),
+                     catalog_dir, work)
+        print("  %-6s %2d 枚（ほかにウィジェット用 %d 枚）" % (character, len(names), len(names)))
 
     work.rmdir()
     catalog.update_characters(
-        RESOURCES / "characters.json", poses_by_character,
+        RESOURCES / "characters.json", poses_by_character, mini_by_character,
         {"aspectRatio": round(chara.ASPECT, 4), "groundRatio": round(chara.GROUND_RATIO, 4)})
     return poses_by_character
 
@@ -177,7 +206,8 @@ def verify():
     import json
     problems = []
     checks = [(RESOURCES / "characters.json", "characters", CHARACTER_CATALOG,
-               lambda e: [n for names in e["poses"].values() for n in names]),
+               lambda e: [n for key in ("poses", "miniPoses")
+                          for names in e[key].values() for n in names]),
               (RESOURCES / "items.json", "items", ITEM_CATALOG,
                lambda e: [e["assetName"]])]
     for json_path, key, catalog_dir, names_of in checks:

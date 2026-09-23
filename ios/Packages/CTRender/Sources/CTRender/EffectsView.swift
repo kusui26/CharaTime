@@ -15,6 +15,12 @@ struct EffectsView: View {
     let palette: RoomPalette
     /// 演出の位相に使う秒数。区切りの中の経過秒ではなく、連続した時刻を使う。
     let seconds: Double
+    /// ミラーボールの光点を描くか。
+    ///
+    /// ウィジェットでは描かない（3-C ⑥）。止めた 1 枚では回らない光点がただの点になり、
+    /// 動かすのは疑似アニメのタイマーの役目（3-2b の光の粒）。「z」や音符は止まっていても
+    /// 寝ている・おどっていると読めるので、ウィジェットでも描く。
+    var showsSparkles: Bool = true
 
     /// 光点の数と、1 周にかける秒数。
     private static let sparkleCount = 9
@@ -32,7 +38,7 @@ struct EffectsView: View {
         Canvas { context, size in
             drawBallGlow(&context)
             if isDancing {
-                drawSparkles(&context, size: size)
+                if showsSparkles { drawSparkles(&context, size: size) }
                 drawNotes(&context)
             }
             if isAsleep { drawSleepMarks(&context) }

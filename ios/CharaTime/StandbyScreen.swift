@@ -23,10 +23,17 @@ struct StandbyScreen: View {
     private static let showsSpikePreview =
         ProcessInfo.processInfo.arguments.contains("spike")
 
+    /// `-CTScreen widgets` で、ホーム画面ウィジェットの下見画面を出す（確認用。3-2）。
+    private static let showsWidgetPreview =
+        ProcessInfo.processInfo.arguments.contains("widgets")
+
     var body: some View {
         Group {
             if Self.showsSpikePreview {
                 SpikePreviewScreen()
+            } else if Self.showsWidgetPreview, let world = model.world {
+                WidgetPreviewScreen(input: model.input, world: world,
+                                    settings: model.state.settings, timeWarp: model.timeWarp)
             } else if let world = model.world {
                 StandbyView(input: model.input, world: world,
                             settings: model.state.settings, battery: model.battery,

@@ -210,6 +210,17 @@ struct AmbientCueTests {
         }
     }
 
+    /// 描画の段が変わっても（5 分ごとの切り替え ⇄ 1fps）、描く姿勢は変わらない。
+    @Test("動かし方の姿勢は、止めた 1 枚の姿勢と同じ")
+    func cuePoseMatchesStillPose() {
+        let activities: [Activity] = [.sleep, .nap, .wander, .idle, .sit(itemId: "cu"), .dance(itemId: "ball"),
+                                      .play(itemId: "cu"), .look(itemId: nil), .eat(itemId: "x"),
+                                      .clockGreet, .happyStretch]
+        for activity in activities {
+            #expect(cue(activity).pose == activity.stillPose, "\(activity)")
+        }
+    }
+
     // MARK: - 道具
 
     /// 出し分ける 2 枚は、どの瞬間もちょうど 1 枚だけが見えていなければならない。

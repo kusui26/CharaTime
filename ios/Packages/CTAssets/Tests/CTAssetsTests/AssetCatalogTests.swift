@@ -46,6 +46,25 @@ struct AssetCatalogTests {
         }
     }
 
+    /// ウィジェットは mini だけを読む（D-20）。待受モードの絵と姿勢・枚数がそろっていないと、
+    /// ウィジェットだけ別のコマを描いたり、足りないコマで待受モードの大きな絵に落ちたりする。
+    @Test("ウィジェット用の小さい絵（mini）が、待受モードの絵と同じ並びでそろっている")
+    func everyMiniFrameExists() throws {
+        let catalog = try #require(Self.catalog("Characters"))
+        for character in try Catalog.characters() {
+            for pose in Pose.allCases {
+                let frames = character.poses[pose] ?? []
+                let minis = character.miniPoses[pose] ?? []
+                #expect(minis == frames.map { $0 + "_mini" },
+                        Comment(rawValue: "\(character.id) の \(pose.rawValue): \(minis)"))
+            }
+            for name in Pose.allCases.flatMap({ character.miniPoses[$0] ?? [] }) {
+                let missing = Self.missingFiles(for: name, in: catalog)
+                #expect(missing.isEmpty, Comment(rawValue: "\(character.id): \(missing)"))
+            }
+        }
+    }
+
     @Test("アイテムの絵が全部そろっている")
     func everyItemImageExists() throws {
         let catalog = try #require(Self.catalog("Items"), "Items.xcassets が同梱されていません")
@@ -73,7 +92,7 @@ struct AssetCatalogTests {
         let items = try Catalog.items()
         let expected: [(String, Set<String>)] = [
             ("Characters", Set(characters.flatMap { character in
-                Pose.allCases.flatMap { character.poses[$0] ?? [] }
+                Pose.allCases.flatMap { (character.poses[$0] ?? []) + (character.miniPoses[$0] ?? []) }
             })),
             ("Items", Set(items.map(\.assetName)))
         ]

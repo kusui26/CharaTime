@@ -1,6 +1,15 @@
 import SwiftUI
 import CTCore
 
+/// 部屋に作り付けのもの（部屋を決めた画面に対する比）。
+///
+/// **View の外に置く。** SwiftUI の `View` は `@MainActor` なので、その静的な値を
+/// 置き方の計算やテストから読むと、隔離の検査に引っかかる（`ItemOrder` と同じ教訓）。
+enum RoomFixture {
+    /// 窓。時計の下、キャラの上に来るように置く。
+    static let window = RoomRect(x: 0.067, y: 0.339, width: 0.287, height: 0.149)
+}
+
 /// 部屋の背景（壁・床・幅木・窓）。
 ///
 /// **Phase 1 は SwiftUI の図形で描く。** 同梱イラストは Phase 2 で生成 AI が作るが、
@@ -9,9 +18,12 @@ import CTCore
 ///
 /// 壁と床の境目は床の矩形の上辺に置く。**日課エンジンはキャラを床の矩形の中しか
 /// 歩かせない**ので、こうすると「壁の中を歩く」ことが起こり得ない。
+///
+/// 位置は `SceneLayout` の写し方で、窓や敷物の大きさと線の太さは舞台（`stage`）で決める。
+/// 待受モードでは画面そのもの、ウィジェットでは大きさごとの写し方になる（3-C ⑥）。
 struct RoomView: View {
 
-    let floor: RoomRect
+    let layout: SceneLayout
     let palette: RoomPalette
     /// 窓を描くか。ウィジェットの小さな枠では省く。
     var showsWindow: Bool = true
@@ -25,7 +37,7 @@ struct RoomView: View {
     private static let rugWidthRatio: Double = 0.62
     private static let rugFlatness: Double = 0.32
 
-    /// 幅木の高さ（画面の高さに対する比）。
+    /// 幅木の高さ（舞台の高さに対する比）。
     private static let baseboardRatio: Double = 0.009
     /// 壁と床の境の線の太さ。
     private static let horizonLineRatio: Double = 0.005
@@ -35,11 +47,13 @@ struct RoomView: View {
 
     var body: some View {
         Canvas { context, size in
-            let horizon = size.height * floor.minY
-            draw(&context, size: size, horizon: horizon)
+            draw(&context, size: size, horizon: layout.horizonY)
         }
-        .overlay(alignment: .topLeading) {
-            if showsWindow { WindowView(palette: palette, isNight: isNight) }
+        .overlay {
+            if showsWindow {
+                WindowView(rect: layout.fixtureFrame(RoomFixture.window), unit: layout.unit,
+                           palette: palette, isNight: isNight)
+            }
         }
         .ignoresSafeArea()
     }
@@ -58,22 +72,22 @@ struct RoomView: View {
                      with: .color(palette.floorNear))
         context.opacity = 1
 
-        let baseboard = size.height * Self.baseboardRatio
+        let baseboard = layout.stage.height * Self.baseboardRatio
         context.fill(Path(CGRect(x: 0, y: horizon - baseboard, width: width, height: baseboard)),
                      with: .color(palette.baseboard))
-        let line = size.height * Self.horizonLineRatio
+        let line = layout.stage.height * Self.horizonLineRatio
         context.fill(Path(CGRect(x: 0, y: horizon - line / 2, width: width, height: line)),
                      with: .color(palette.outline))
-        if showsRug { drawRug(&context, size: size, lineWidth: line) }
+        if showsRug { drawRug(&context, lineWidth: line) }
     }
 
     /// 敷物。床の真ん中に置いて、キャラの居場所を絵として示す。
-    private func drawRug(_ context: inout GraphicsContext, size: CGSize, lineWidth: Double) {
-        let center = floor.at(Self.rugCenter.x, Self.rugCenter.y)
-        let rugWidth = floor.width * size.width * Self.rugWidthRatio
+    private func drawRug(_ context: inout GraphicsContext, lineWidth: Double) {
+        let floor = layout.room.floor
+        let center = layout.point(floor.at(Self.rugCenter.x, Self.rugCenter.y))
+        let rugWidth = floor.width * layout.stage.width * Self.rugWidthRatio
         let rugHeight = rugWidth * Self.rugFlatness
-        let rect = CGRect(x: center.x * size.width - rugWidth / 2,
-                          y: center.y * size.height - rugHeight / 2,
+        let rect = CGRect(x: center.x - rugWidth / 2, y: center.y - rugHeight / 2,
                           width: rugWidth, height: rugHeight)
         context.fill(Path(ellipseIn: rect), with: .color(palette.rug))
         context.stroke(Path(ellipseIn: rect), with: .color(palette.outline), lineWidth: lineWidth)
@@ -85,23 +99,21 @@ struct RoomView: View {
 /// 壁の窓。夜は月と星、昼は雲が見える。
 struct WindowView: View {
 
+    /// 窓の枠（ポイント）。
+    let rect: CGRect
+    /// 基準の 1pt が何 pt か。星の大きさに使う。
+    let unit: Double
     let palette: RoomPalette
     /// 夜は月と星、昼は白い雲。
     var isNight: Bool = true
 
-    /// 窓の位置と大きさ（画面に対する比）。時計の下、キャラの上に来るように置く。
-    private static let frame = RoomRect(x: 0.067, y: 0.339, width: 0.287, height: 0.149)
     private static let cornerRatio: Double = 0.08
     private static let strokeRatio: Double = 0.013
+    /// 星の直径（基準のポイント）。
+    private static let starDiameter: Double = 2.8
 
     var body: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            let rect = CGRect(x: Self.frame.x * size.width, y: Self.frame.y * size.height,
-                              width: Self.frame.width * size.width,
-                              height: Self.frame.height * size.height)
-            Canvas { context, _ in draw(&context, in: rect) }
-        }
+        Canvas { context, _ in draw(&context, in: rect) }
     }
 
     private func draw(_ context: inout GraphicsContext, in rect: CGRect) {
@@ -124,11 +136,12 @@ struct WindowView: View {
         let moon = CGRect(x: rect.minX + rect.width * 0.55, y: rect.minY + rect.height * 0.14,
                           width: rect.width * 0.28, height: rect.width * 0.28)
         context.fill(Path(ellipseIn: moon), with: .color(palette.glow))
+        let diameter = Self.starDiameter * unit
         for star in Self.stars {
             let point = CGPoint(x: rect.minX + rect.width * star.x,
                                 y: rect.minY + rect.height * star.y)
-            context.fill(Path(ellipseIn: CGRect(x: point.x - 1.4, y: point.y - 1.4,
-                                                width: 2.8, height: 2.8)),
+            context.fill(Path(ellipseIn: CGRect(x: point.x - diameter / 2, y: point.y - diameter / 2,
+                                                width: diameter, height: diameter)),
                          with: .color(palette.glow.opacity(0.75)))
         }
     }

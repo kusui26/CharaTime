@@ -21,6 +21,7 @@
 #   scripts/ios-loop.sh --device "iPhone 17"
 #   scripts/ios-loop.sh --time 14:30           その時刻の姿を撮る
 #   scripts/ios-loop.sh --time 07:00 --speed 240   7:00 から 240 倍速で動かす
+#   scripts/ios-loop.sh --screen widgets --time 21:05   ウィジェットの下見（大・中・小）を撮る
 #
 set -euo pipefail
 
@@ -49,6 +50,8 @@ device_name="iPhone 17 Pro"
 # 確認のために時刻をずらす（プラン §9 Phase 1 の 1-5）。空なら実時刻。
 fixed_time=""
 time_speed=""
+# 最初に開く画面（-CTScreen。widgets・settings・dayPlan など）。空なら待受モード。
+start_screen=""
 skip_test=false
 shot_only=false
 test_only=false
@@ -70,10 +73,11 @@ parse_args() {
       --device)    device_name="${2:?--device には端末名が必要です}"; shift 2 ;;
       --time)      fixed_time="${2:?--time には 14:30 のような時刻が必要です}"; shift 2 ;;
       --speed)     time_speed="${2:?--speed には倍率が必要です}"; shift 2 ;;
+      --screen)    start_screen="${2:?--screen には画面の名前（widgets など）が必要です}"; shift 2 ;;
       --skip-test) skip_test=true; shift ;;
       --shot-only) shot_only=true; shift ;;
       --test-only) test_only=true; shift ;;
-      -h|--help)   sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
+      -h|--help)   sed -n '2,27p' "${BASH_SOURCE[0]}"; exit 0 ;;
       *)           die "不明な引数: $1（--help で使い方を表示）" ;;
     esac
   done
@@ -128,6 +132,7 @@ install_and_launch() {
   local launch_args=()
   [[ -n "${fixed_time}" ]] && launch_args+=(-CTTime "${fixed_time}")
   [[ -n "${time_speed}" ]] && launch_args+=(-CTSpeed "${time_speed}")
+  [[ -n "${start_screen}" ]] && launch_args+=(-CTScreen "${start_screen}")
   if ! run_with_timeout "${SIMCTL_TIMEOUT_SEC}" \
       xcrun simctl launch "${device_name}" "${BUNDLE_ID}" "${launch_args[@]+"${launch_args[@]}"}" \
       >/dev/null; then
