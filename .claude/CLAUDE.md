@@ -40,6 +40,7 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
 **依存の向きは一方向。** `CTCore ← CTAssets ← CTRender / CTStore ← アプリ / ウィジェット`。
 - `CTCore` は Foundation だけ。UIKit・SwiftUI・CoreGraphics を入れない。
 - `CTRender` は SwiftUI のみ。UIKit と SpriteKit を入れない（ウィジェットと共有するため）。
+  WidgetKit は、ウィジェットの描き分けの修飾子と環境の値のためだけに使う（D-27）。
 - ウィジェット拡張は約 30 MB のメモリ上限で動く。重い依存を足すときは必ず測る。
 
 **画像はパイプライン経由でしか追加しない。** `tools/pipeline` が `characters.json` /
@@ -113,6 +114,8 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
 - **UI テストを走らせても、アプリは入れ直されない。** ウィジェットを足したら `scripts/home-screen.sh build` で
   入れ直す。入れ直さないと、足したウィジェットがギャラリーに出てこない。
 - **実行中のスクリプトを書き換えない。** bash は実行しながら読むので、構文エラーになる。
+- **`#expect` の中で `CGFloat` と `Double` を直接比べない。** 同じ値でも等しくならない。
+  `Double(...)` にそろえてから比べる（3-2 で、差が 0 なのに落ちた）。
 
 **import**
 - `import` はファイル先頭に置く。条件付きは `#if os(iOS)` で囲む。
@@ -180,6 +183,7 @@ scripts/ios-loop.sh              # 上記 → 生成 → ビルド → 起動 �
 scripts/ios-loop.sh --skip-test  # テストを飛ばす（描画だけ見たいとき）
 scripts/ios-loop.sh --shot-only  # スクショだけ
 scripts/ios-loop.sh --test-only  # scripts/check.sh と同じ（パッケージだけ）
+scripts/ios-loop.sh --screen widgets --time 21:05   # ウィジェットの下見（大・中・小）を撮る
 ```
 
 **コミット前には必ず `scripts/check.sh` を通す。** 3 つの品質ゲート（lint・
@@ -234,7 +238,11 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は、E・F の作り（マスク書体、
 右から k 字目の切り出し `GlyphWindow`、0 時起点 `MidnightClock`）を本番へ移してから消します（3-2b）。
 **3-1（CTCore と CTStore）も済み**: エントリの時刻（`WidgetTimeline`）、動かし方（`AmbientCue`・
-`BlinkRhythm`・`TimerWindow`）、`state.json` の `context` と `widget`。次は 3-2（静止のウィジェット）。
+`BlinkRhythm`・`TimerWindow`）、`state.json` の `context` と `widget`。
+**3-2（静止のウィジェット）も済み**: 本番の `HomeWidget`（kind `CharaTimeHome`、小・中・大）が骨組みに代わった。
+大きさごとの写し方は `WidgetStage`（D-26）、絵は `WidgetScene`（ウィジェット用の小さい絵 mini を読む）。
+ホーム画面は実時刻でしか動かないので、好きな時刻の姿は下見の画面（`--screen widgets`）で見る。
+拡張のメモリ（大で 15 MB 以下）は実機で測る。次は 3-2b（疑似アニメ）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
