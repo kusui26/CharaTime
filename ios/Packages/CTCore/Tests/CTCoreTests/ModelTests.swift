@@ -11,7 +11,7 @@ struct ModelTests {
             personality: Personality(activity: 0.9, nightOwl: 0.1, napiness: 0.3, favorites: [.ball]),
             poses: [.idle: ["piyo_idle_01", "piyo_idle_02"],
                     .walk: ["piyo_walk_01", "piyo_walk_02", "piyo_walk_03", "piyo_walk_04"],
-                    .sit: ["piyo_sit_01"],
+                    .sit: ["piyo_sit_01", "piyo_sit_02"],
                     .sleep: ["piyo_sleep_01", "piyo_sleep_02"],
                     .happy: ["piyo_happy_01", "piyo_happy_02"]],
             origin: .bundled)
@@ -27,10 +27,11 @@ struct ModelTests {
         #expect(restored.frameCount(.surprised) == 0)   // 未用意の姿勢は 0
     }
 
-    @Test("Tier 1 は 11 枚")
+    /// すわる姿のまばたきの絵を 3-2b で足した（11 枚から 12 枚）。
+    @Test("Tier 1 は 12 枚")
     func tierOneFrameCount() {
         let total = Pose.allCases.reduce(0) { $0 + sampleCharacter().frameCount($1) }
-        #expect(total == 11)
+        #expect(total == 12)
     }
 
     @Test("取り込んだキャラも同じ型で往復する")
@@ -76,6 +77,29 @@ struct ModelTests {
         let restored = try JSONDecoder().decode(Character.self, from: trimmed)
         #expect(restored.miniPoses.isEmpty)
         #expect(restored.poses == sampleCharacter().poses)
+    }
+
+    @Test("まぶたと寝息の判定も JSON を往復し、疑似アニメの絵の持ち物になる")
+    func ambientArtRoundTrip() throws {
+        var character = sampleCharacter()
+        character.eyelids = [.idle: "piyo_idle_eyelid_mini"]
+        character.sleepFrameCoversBase = true
+        let restored = try JSONDecoder().decode(Character.self, from: try JSONEncoder().encode(character))
+        #expect(restored == character)
+        #expect(restored.ambientArt == AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true))
+    }
+
+    /// 分からないときは覆えないとみなす（重ねて縁がはみ出すより、2 枚を出し分けるほうが崩れない）。
+    @Test("まぶたと寝息の判定が無い JSON は、まぶた無し・覆えないとして読む")
+    func missingAmbientArtIsConservative() throws {
+        let data = try JSONEncoder().encode(sampleCharacter())
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "eyelids")
+        object.removeValue(forKey: "sleepFrameCoversBase")
+        let trimmed = try JSONSerialization.data(withJSONObject: object)
+        let restored = try JSONDecoder().decode(Character.self, from: trimmed)
+        #expect(restored.eyelids.isEmpty)
+        #expect(!restored.sleepFrameCoversBase)
     }
 
     @Test("止めた 1 枚で描くとき、歩く姿だけは立ち止まった姿にする")

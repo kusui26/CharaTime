@@ -53,6 +53,9 @@ targets:
     platform: iOS
     sources:
       - path: CharaTime
+      # 疑似アニメのマスク書体（tools/pipeline が焼く）と、書体の確認。ウィジェットの下見と設定画面で使う。
+      - path: Shared/Fonts
+      - path: Shared/Sources
       # スパイクの見た目だけ本体アプリでも描けるようにする。
       # **手元でマスクフォントが正しく効くかを先に確かめるため**で、
       # 実機での判定（拡張が止まっていても描き直されるか）はこれでは分からない。
@@ -82,8 +85,16 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        # スパイクの確認画面（`-CTScreen spike`）で使う。判定が出たら消す。
+        # 疑似アニメのマスク書体（ウィジェット拡張と同じ 7 本。並びは tools/pipeline/masks.py と同じ）と、
+        # スパイクの確認画面（`-CTScreen spike`）の書体（スパイクを消すときに一緒に消す）。
         UIAppFonts:
+          - CTMask05.ttf
+          - CTMask036.ttf
+          - CTMask02468.ttf
+          - CTMask0156.ttf
+          - CTMask012567.ttf
+          - CTMask0.ttf
+          - CTMask012.ttf
           - CTSpikeMaskEven.ttf
           - CTSpikeMaskOdd.ttf
           - CTSpikeMaskSet27.ttf
@@ -102,6 +113,8 @@ targets:
     platform: iOS
     sources:
       - path: CharaTimeWidget
+      - path: Shared/Fonts
+      - path: Shared/Sources
     dependencies:
       - package: CTCore
       - package: CTAssets
@@ -119,6 +132,16 @@ targets:
         CFBundleDisplayName: CharaTime
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
+        # 疑似アニメのマスク書体（tools/pipeline/masks.py が焼く 7 本）。**拡張の UIAppFonts で登録する。**
+        # 実行時に登録した書体を、OS のタイマーの描き直しが使うかは確かめていない（スパイクはこの形で動いた）。
+        UIAppFonts:
+          - CTMask05.ttf
+          - CTMask036.ttf
+          - CTMask02468.ttf
+          - CTMask0156.ttf
+          - CTMask012567.ttf
+          - CTMask0.ttf
+          - CTMask012.ttf
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

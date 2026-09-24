@@ -9,23 +9,28 @@ import CTStore
 /// アニメで中身だけが動き、背景と食い違う瞬間ができるため。背景を外す描き方（着色・クリア・
 /// StandBy）では部屋を描かず、キャラとアイテムだけにする（OS が背景を敷き直す）。
 ///
-/// 絵は止めた 1 枚（`SpritePick.still`）。エントリが切り替わると、キャラを約 1.5 秒かけて
-/// 新しい居場所へ滑らせる（④'）。遠くへ移るときは滑らせず、消えて現れる（`WidgetMoment.leg`）。
+/// 描画の段（3-C ⑤）が 1fps 以上なら、止めた 1 枚の上で、まばたき・寝息・よろこぶを
+/// マスク書体のタイマーで出し入れする（疑似アニメ。3-C ④）。段が下がれば止めた 1 枚だけを描く。
+/// エントリが切り替わると、キャラを約 1.5 秒かけて新しい居場所へ滑らせる（④'）。
+/// 遠くへ移るときは滑らせず、消えて現れる（`WidgetMoment.leg`）。
 public struct WidgetScene: View {
 
     public let family: WidgetSlot.Family
     public let moment: WidgetMoment
     public let world: SceneWorld
+    public let motion: WidgetMotion
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.showsWidgetContainerBackground) private var showsBackground
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var luminanceReduced
 
-    public init(family: WidgetSlot.Family, moment: WidgetMoment, world: SceneWorld) {
+    public init(family: WidgetSlot.Family, moment: WidgetMoment, world: SceneWorld,
+                motion: WidgetMotion = .still) {
         self.family = family
         self.moment = moment
         self.world = world
+        self.motion = motion
     }
 
     /// エントリ切替でキャラを滑らせる長さ（秒）。OS がエントリ切替に許すアニメは最大 2 秒で、
@@ -48,7 +53,8 @@ public struct WidgetScene: View {
                     FloorHint(layout: layout)
                 }
                 SceneLayers(state: moment.state, world: world, layout: layout, palette: palette,
-                            look: .widget(identity: moment.leg, tone: tone),
+                            look: .widget(identity: moment.leg, tone: tone,
+                                          ambient: moment.ambientLook(at: capability(tone: tone))),
                             seconds: moment.date.timeIntervalSinceReferenceDate)
             }
             .animation(slide, value: moment.date)
@@ -63,10 +69,47 @@ public struct WidgetScene: View {
         [world.character.displayName, moment.state.bubble?.text].compactMap { $0 }.joined(separator: "、")
     }
 
+    /// いまの描画の段（3-C ⑤）。OS の版・描き分け・設定・端末の状態から決める。
+    private func capability(tone: WidgetTone) -> RenderCapability {
+        RenderCapability.resolve(RenderContext(
+            surface: .homeWidget, tone: tone, pseudoAnimationEnabled: motion.pseudoAnimation,
+            reduceMotion: reduceMotion, lowPowerMode: motion.lowPowerMode,
+            luminanceReduced: luminanceReduced))
+    }
+
     /// エントリ切替の動き。Reduce Motion では滑らせず、すぐ入れ替える（D-19）。
     /// 常時表示の減光中は、OS がそもそもアニメを行わない。
     private var slide: Animation? {
         reduceMotion || luminanceReduced ? nil : .easeInOut(duration: Self.slideSeconds)
+    }
+}
+
+/// ウィジェットを動かしてよいか。タイムラインを作ったときに決まること（3-C ⑤）。
+public struct WidgetMotion: Sendable, Equatable {
+
+    /// 疑似アニメを使うか。設定（`WidgetSettings.usesPseudoAnimation`）が入で、マスク書体が
+    /// 登録されているとき。書体が無いとシステムの字に落ち、数字の形の穴から絵が覗くため。
+    public var pseudoAnimation: Bool
+    /// タイムラインを作ったときに低電力モードだったか（電池を守る。3-C ⑤）。
+    public var lowPowerMode: Bool
+
+    public init(pseudoAnimation: Bool, lowPowerMode: Bool) {
+        self.pseudoAnimation = pseudoAnimation
+        self.lowPowerMode = lowPowerMode
+    }
+
+    /// 動かさない（止めた 1 枚）。
+    public static let still = WidgetMotion(pseudoAnimation: false, lowPowerMode: false)
+}
+
+public extension WidgetMoment {
+
+    /// その描画の段で、疑似アニメをどう描くか。段が 1fps に届かなければ nil（止めた 1 枚）。
+    /// 1fps の段では、0.25 秒ずつ動くもの（光の粒）を外す。
+    internal func ambientLook(at capability: RenderCapability) -> AmbientLook? {
+        guard capability >= .ambient1fps else { return nil }
+        let pace: AmbientPace = capability >= .ambient4fps ? .quarterSecond : .perSecond
+        return AmbientLook(cue: cue.limited(to: pace), anchor: anchor)
     }
 }
 

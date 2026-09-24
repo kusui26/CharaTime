@@ -48,10 +48,27 @@ struct RenderCapabilityTests {
         #expect(Self.free { $0.pseudoAnimationEnabled = false } == .timelineTransition)
     }
 
-    @Test("着色・クリア（accented）と単色（vibrant）では上げない")
-    func tintedAndVibrantStayLow() {
-        #expect(Self.free { $0.tone = .accented } == .timelineTransition)
+    /// 着色・クリアでもタイマーは止まらず、まぶたは fullColor で色を保つ（3-2b でホーム画面を収録して
+    /// 確かめた）。光の粒（4fps）は図形で色を失い、見え方も確かめていないので、1fps まで。
+    @Test("着色・クリア（accented）は 1fps まで。単色（vibrant）では上げない")
+    func tintedStopsAtOneFpsAndVibrantStaysLow() {
+        #expect(Self.free { $0.tone = .accented } == .ambient1fps)
         #expect(Self.free { $0.tone = .vibrant } == .timelineTransition)
+    }
+
+    @Test("着色・クリアの頭打ちと、設定・端末の状態の頭打ちが重なる")
+    func tintedStacksWithDeviceLimits() {
+        func resolve(_ change: (inout RenderContext) -> Void) -> RenderCapability {
+            Self.free {
+                $0.tone = .accented
+                change(&$0)
+            }
+        }
+        #expect(resolve { $0.pseudoAnimationEnabled = false } == .timelineTransition)
+        #expect(resolve { $0.reduceMotion = true } == .timelineTransition)
+        #expect(resolve { $0.lowPowerMode = true } == .timelineTransition)
+        #expect(resolve { $0.system = Self.unverified } == .timelineTransition)
+        #expect(resolve { $0.luminanceReduced = true } == .staticOnly)
     }
 
     @Test("減光中はどんな設定でも静止画まで落ちる")
@@ -115,6 +132,9 @@ struct RenderCapabilityTests {
     }
 
     /// **迷ったら下げる。** 制約を 1 つ足して段が上がることは、決してあってはならない。
+    ///
+    /// 描き分けは、フルカラー → 着色 → 単色 の順に厳しくなる。着色は、フルカラーのときだけ
+    /// 厳しくする制約（単色を着色に戻すのは、制約を外すこと）。
     @Test("制約を足すと、段は必ず下がるか同じ")
     func constraintsNeverRaiseTheLadder() {
         let constraints: [(String, (inout RenderContext) -> Void)] = [
@@ -123,7 +143,7 @@ struct RenderCapabilityTests {
             ("省電力", { $0.lowPowerMode = true }),
             ("減光中", { $0.luminanceReduced = true }),
             ("確かめていない OS", { $0.system = Self.unverified }),
-            ("着色", { $0.tone = .accented }),
+            ("着色", { if $0.tone == .fullColor { $0.tone = .accented } }),
             ("単色", { $0.tone = .vibrant }),
         ]
         for base in Self.everyContext() {

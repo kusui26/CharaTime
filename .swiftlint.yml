@@ -10,6 +10,7 @@ included:
   - ios/Packages/CTStore/Sources
   - ios/CharaTime
   - ios/CharaTimeWidget
+  - ios/Shared/Sources
 
 excluded:
   - ios/build

@@ -638,7 +638,7 @@ def build_sheet():
                    + '<div style="font-size:16px;font-weight:700;color:' + INK + ';letter-spacing:1px;">'
                    + p["name"] + '</div>'
                    + '<div style="display:flex;gap:6px;">' + sw + '</div></div>')
-    # コマの並びは chara.FRAMES が持つ（tools/pipeline が焼く 11 枚と同じもの）。
+    # コマの並びは chara.FRAMES が持つ（tools/pipeline が焼く 12 枚と同じもの）。
     LABEL = {"idle": "立つ", "walk": "歩く", "sit": "すわる", "sleep": "ねる", "happy": "よろこぶ"}
     poserow = ""
     for pose, frames in chara.FRAMES:
@@ -675,10 +675,10 @@ def build_sheet():
             '<div style="margin-top:2px;font-size:11.5px;line-height:1.7;color:' + MUT + ';">'
             'ウィジェットやロック画面では 40pt 前後で表示される。突起と主色だけで誰か分かることを採用条件にした。</div>'
             '</div></div>'
-            '<div style="display:flex;flex-direction:column;gap:15px;">' + sec("1 体ぶんのポーズ（Tier 1 ＝ 11 枚）")
+            '<div style="display:flex;flex-direction:column;gap:15px;">' + sec("1 体ぶんのポーズ（Tier 1 ＝ 12 枚）")
             + '<div style="display:flex;gap:20px;align-items:flex-end;">' + poserow
             + '<div style="margin-left:10px;max-width:300px;font-size:11.5px;line-height:1.8;color:' + MUT + ';">'
-            '立つ 2 ＋ 歩く 4 ＋ すわる 1 ＋ ねる 2 ＋ よろこぶ 2 ＝ <b>11 枚</b>。<br>'
+            '立つ 2 ＋ 歩く 4 ＋ すわる 2 ＋ ねる 2 ＋ よろこぶ 2 ＝ <b>12 枚</b>。<br>'
             '右向きは左向きの反転で作るので、描くのは左向きだけ。<br>'
             '足りない表情は、はねる・かたむく・呼吸などコード側の動きで足す。</div>'
             '</div></div></div>')

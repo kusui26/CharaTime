@@ -39,6 +39,13 @@ struct BubbleStyle: Sendable, Equatable {
     private static let tintedFillOpacity: Double = 0.3
 }
 
+/// 吹き出しを疑似アニメの窓で出し入れするときの材料（時報の 30 秒。3-C ③）。
+struct BubbleWindow: Sendable, Equatable {
+    let window: TimerWindow
+    /// タイマーの起点。エントリの日付の 0 時（D-18）。
+    let anchor: Date
+}
+
 /// キャラの吹き出し。
 ///
 /// キャラの頭の横に出し、**画面の外へはみ出しそうなら反対側へ寄せる**。
@@ -51,6 +58,11 @@ struct BubbleView: View {
     let characterHeight: Double
     let palette: RoomPalette
     var style: BubbleStyle = .standby
+    /// 窓で出し入れするときの材料。nil なら出したまま。
+    var window: BubbleWindow?
+
+    /// 窓のマスクの一辺（ポイント）。吹き出し（字 6 字ほどと、しっぽ）がすっぽり入る大きさ。
+    private static let windowCell: Double = 160
 
     /// キャラの足元からどれだけ上に出すか（背の高さに対する比）。頭の横に来る。
     private static let riseRatio: Double = 0.72
@@ -69,6 +81,7 @@ struct BubbleView: View {
             if !onRight { tail(pointingRight: true) }
         }
         .fixedSize()
+        .modifier(BubbleWindowMask(window: window, cell: Self.windowCell))
         .position(x: bubbleX(anchor: anchor, onRight: onRight),
                   y: anchor.y - characterHeight * Self.riseRatio)
     }
@@ -104,6 +117,20 @@ struct BubbleView: View {
         let center = onRight ? anchor.x + offset : anchor.x - offset
         let half = style.edgeMargin + style.tailSize
         return Swift.min(Swift.max(center, half), layout.size.width - half)
+    }
+}
+
+/// 窓があれば、開いているあいだだけ吹き出しを見せる。
+private struct BubbleWindowMask: ViewModifier {
+    let window: BubbleWindow?
+    let cell: Double
+
+    func body(content: Content) -> some View {
+        if let window {
+            content.shown(during: window.window, anchor: window.anchor, cell: cell)
+        } else {
+            content
+        }
     }
 }
 

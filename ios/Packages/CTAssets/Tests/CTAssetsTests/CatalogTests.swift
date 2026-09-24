@@ -15,16 +15,17 @@ struct CatalogTests {
         #expect(all.map(\.displayName) == ["ピヨ", "モチ", "クマオ", "フワ", "チップ"])
     }
 
-    @Test("どの子も Tier 1 の 11 枚がそろっている")
+    /// すわる姿の 2 コマ目（まばたき）は 3-2b で足した。
+    @Test("どの子も Tier 1 の 12 枚がそろっている")
     func everyCharacterHasTierOne() throws {
-        let expected: [Pose: Int] = [.idle: 2, .walk: 4, .sit: 1, .sleep: 2, .happy: 2]
+        let expected: [Pose: Int] = [.idle: 2, .walk: 4, .sit: 2, .sleep: 2, .happy: 2]
         for character in try Catalog.characters() {
             for (pose, count) in expected {
                 #expect(character.frameCount(pose) == count,
                         "\(character.id) の \(pose) が \(character.frameCount(pose)) 枚")
             }
             let total = Pose.allCases.reduce(0) { $0 + character.frameCount($1) }
-            #expect(total == 11, "\(character.id) の合計が \(total) 枚")
+            #expect(total == 12, "\(character.id) の合計が \(total) 枚")
         }
     }
 

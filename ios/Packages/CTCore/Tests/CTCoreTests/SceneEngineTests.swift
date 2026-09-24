@@ -157,6 +157,24 @@ struct SceneEngineTests {
         }
     }
 
+    /// すわる姿の 2 コマ目はまばたきの絵（3-2b で足した）。立ち姿と同じ間隔で、ときどき 1 コマだけ閉じる。
+    @Test("すわっているときも、まばたきの絵があれば、立ち姿と同じ間隔でまばたく")
+    func sittingBlinksLikeStanding() {
+        let rng = IndexedRandom(seed: 0x51_7B11)
+        let seconds = Array(stride(from: 0.0, to: 60.0, by: 0.05))
+        func frames(_ pose: Pose, count: Int) -> [Int] {
+            seconds.map { Motion.frameIndex(pose: pose, frameCount: count, localSeconds: $0, rng: rng) }
+        }
+        let sitting = frames(.sit, count: 2)
+        #expect(sitting == frames(.idle, count: 2))
+        #expect(sitting.contains(1))
+        #expect(sitting.filter { $0 == 1 }.count < sitting.count / 10, "閉じている時間が長すぎる")
+        // まばたきの絵が無い（1 コマしかない）絵なら、目を開けたまま。
+        #expect(frames(.sit, count: 1).allSatisfy { $0 == 0 })
+        // 見上げる姿の 2 コマ目は、まばたきの絵ではない。
+        #expect(frames(.lookUp, count: 2).allSatisfy { $0 == 0 })
+    }
+
     @Test("歩いているあいだは向きが左右のどちらかになる")
     func facesTheDirectionOfTravel() {
         let world = Self.world()

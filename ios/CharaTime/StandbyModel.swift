@@ -141,6 +141,31 @@ final class StandbyModel {
         return true
     }
 
+    // MARK: - ウィジェット
+
+    /// ホーム画面ウィジェットの疑似アニメの入／切（3-2b）。保存して、ウィジェットを作り直す。
+    func setPseudoAnimation(_ isOn: Bool) {
+        state.widget.pseudoAnimation = isOn
+        persist(reloadingWidgets: true)
+    }
+
+    /// ウィジェットと同じ規則の「動かしてよいか」。下見の画面と設定画面が使う。
+    var widgetMotion: WidgetMotion { WidgetMotion.current(for: state.widget) }
+
+    /// いまのホーム画面ウィジェットが、どの段で動く見込みか（3-C ⑩「いまの段を見せる」）。
+    ///
+    /// 見込みなのは、着色・クリアの外観と常時表示はウィジェットの側でしか分からないため。
+    var widgetCapability: RenderCapability {
+        #if canImport(UIKit)
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        #else
+        let reduceMotion = false
+        #endif
+        return RenderCapability.resolve(RenderContext(
+            surface: .homeWidget, pseudoAnimationEnabled: widgetMotion.pseudoAnimation,
+            reduceMotion: reduceMotion, lowPowerMode: widgetMotion.lowPowerMode))
+    }
+
     // MARK: - 端末の状態
 
     /// 電池の変化も見張る。アプリを開いたまま充電器に置いたとき、喜ぶのはその瞬間から（3-C ⑩）。

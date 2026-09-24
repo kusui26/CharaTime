@@ -53,13 +53,13 @@ BODY_FUWA = ("M60 20 C86 20 105 39 105 65 C105 81 99 94 89 102 "
              "L24 128 C24 119 27 109 31 102 C21 94 15 81 15 65 C15 39 34 20 60 20 Z")
 
 # --- コマ割り -------------------------------------------------------
-# 待受モードで使う 11 枚。**枚数と順番の唯一の出どころ**で、
+# 待受モードで使う 12 枚。**枚数と順番の唯一の出どころ**で、
 # tools/pipeline と design/build.py の両方がここを読む。
 # 姿勢名は CTCore の Pose と一致させること。
 FRAMES = [
     ("idle",  ["idle", "blink"]),                          # 立つ（まばたき）
     ("walk",  ["walk", "walkpass", "walk2", "walkpass2"]),  # 歩く（接地→中間→接地→中間）
-    ("sit",   ["sit"]),
+    ("sit",   ["sit", "sitblink"]),                        # すわる（まばたき。3-2b で足した）
     ("sleep", ["sleep", "sleep2"]),                        # ねる（ゆっくり呼吸）
     ("happy", ["happy", "happy2"]),                        # よろこぶ（跳ねる）
 ]
@@ -77,6 +77,11 @@ SIDE_POSES = set(WALK_FEET) | {"side"}
 
 # 顔の作りが同じコマをまとめる。walkpass は walk と、happy2 は happy と同じ顔。
 FACE_OF = {"walkpass": "walk", "walkpass2": "walk", "happy2": "happy", "sleep2": "sleep"}
+
+# まばたきのコマと、その体の姿勢。体・羽・足は元の姿勢のまま、目だけを閉じる。
+# パイプラインは、元の姿勢の 1 コマ目との違いを、ウィジェット用のまぶたの差分にする
+# （EYE_REGION の中だけで比べる）。待受モードは 2 コマ目として、ときどき 1 コマだけ出す。
+BLINK_OF = {"blink": "idle", "sitblink": "sit"}
 
 WING_L  = "M33 110 C15 111 6 125 13 136 C20 145 33 141 37 131 Z"
 WING_R  = "M87 110 C105 111 114 125 107 136 C100 145 87 141 83 131 Z"
@@ -198,6 +203,11 @@ def _eyes(kind="idle", side=False):
     return ('<circle cx="44" cy="64" r="6.5" fill="%s"/><circle cx="76" cy="64" r="6.5" fill="%s"/>'
             '<circle cx="46.3" cy="61.7" r="2" fill="#fff"/><circle cx="78.3" cy="61.7" r="2" fill="#fff"/>' % (OUT, OUT))
 
+# 正面の目を描く範囲（viewBox の座標。左, 上, 右, 下）。開いた目（円）と閉じた目（弧）の両方を、
+# 線の太さぶん広げて囲む。**パイプラインは、この範囲の中だけで**まばたきの絵と目を開けた絵を比べて、
+# ウィジェット用のまぶたの差分を作る（範囲の外の、羽や縁の描き直しの揺れを拾わないため）。
+EYE_REGION = (34, 54, 86, 76)
+
 def _cheeks(c, side=False):
     p = P[c]
     if side:
@@ -217,14 +227,15 @@ def sprite(c, pose="idle", uid="a"):
     """1 体分の <g> を返す"""
     p = P[c]
     acc = p["acc"] if c == "piyo" else p["sub"]
-    face = FACE_OF.get(pose, pose)          # 顔の作りは同系のコマで共通
-    side = pose in SIDE_POSES
+    shape = BLINK_OF.get(pose, pose)        # 体の姿勢（まばたきのコマは、元の姿勢の体で目だけ閉じる）
+    face = FACE_OF.get(shape, shape)        # 顔の作りは同系のコマで共通
+    side = shape in SIDE_POSES
 
     body = BODY
     if c == "fuwa": body = BODY_FUWA
-    if pose == "sit": body = BODY_SIT
+    if shape == "sit": body = BODY_SIT
     if side:
-        body = _body_side_fuwa(WALK_FUWA_PHASE.get(pose, 0.0)) if c == "fuwa" else BODY_SIDE
+        body = _body_side_fuwa(WALK_FUWA_PHASE.get(shape, 0.0)) if c == "fuwa" else BODY_SIDE
     if face == "sleep": body = BODY_SLEEP
 
     # ---- 寝そべり ------------------------------------------------
@@ -256,31 +267,31 @@ def sprite(c, pose="idle", uid="a"):
         g += '<path d="M28 112 Q34 119 40 112" stroke="%s" stroke-width="4.5" fill="none" stroke-linecap="round"/>' % OUT
         # 寝そべりの silhouette は下端が y=156 あたりで、接地線 y=163 に 3 単位届かない。
         # 落としておかないと、影の上に浮いて見える。
-        drop = SLEEP_DROP + (2.25 if pose == "sleep2" else 0)
-        squash = " scale(1 0.985)" if pose == "sleep2" else ""
+        drop = SLEEP_DROP + (2.25 if shape == "sleep2" else 0)
+        squash = " scale(1 0.985)" if shape == "sleep2" else ""
         return '<g transform="translate(0 %g)%s">%s</g>' % (drop, squash, g)
 
     # ---- 立ち・歩き・座り・喜ぶ ----------------------------------
     inner = ""
     inner += _topper(c, side)
     if c != "fuwa":
-        if pose in WALK_FEET:
-            fx, fy, _, _ = WALK_FEET[pose]
+        if shape in WALK_FEET:
+            fx, fy, _, _ = WALK_FEET[shape]
             inner += '<ellipse cx="%g" cy="%g" rx="12" ry="7" fill="%s"/>' % (fx, fy, p["shade"])
-        elif pose == "happy":
+        elif shape == "happy":
             inner += _feet(c, y=154, lx=43, rx=77)
-        elif pose == "happy2":
+        elif shape == "happy2":
             # 着地したところ。跳ねているコマより足を少し外へ開いて低くする。
             inner += _feet(c, y=157, lx=41, rx=79)
-        elif pose != "sit":
+        elif shape != "sit":
             inner += _feet(c)
     # 羽
-    if pose == "happy":
+    if shape == "happy":
         inner += '<path d="%s" fill="%s"/><path d="%s" fill="%s"/>' % (WING_UP_L, p["sub"], WING_UP_R, p["sub"])
-    elif pose == "happy2":
+    elif shape == "happy2":
         # 羽を下ろしたコマ。上げたコマと交互に出すと、羽ばたいて見える。
         inner += '<path d="%s" fill="%s"/><path d="%s" fill="%s"/>' % (WING_L, p["sub"], WING_R, p["sub"])
-    elif pose == "sit":
+    elif shape == "sit":
         inner += ('<path d="M33 124 C17 125 9 138 16 148 C23 156 35 152 39 142 Z" fill="%s"/>'
                   '<path d="M87 124 C103 125 111 138 104 148 C97 156 85 152 81 142 Z" fill="%s"/>' % (p["sub"], p["sub"]))
     else:
@@ -289,14 +300,14 @@ def sprite(c, pose="idle", uid="a"):
     inner += '<path d="%s" fill="%s"/>' % (body, p["body"])
     if side:
         # 歩くコマでは羽を前後に振る。肩を軸にするので付け根がずれない。
-        angle = WALK_WING_ANGLE.get(pose, 0)
+        angle = WALK_WING_ANGLE.get(shape, 0)
         wing = '<path d="%s" fill="%s"/>' % (WING_SIDE, p["sub"])
         inner += '<g transform="rotate(%g 68 115)">%s</g>' % (angle, wing) if angle else wing
     # 手前の足（奥の足より明るい色で、前後関係を出す）
-    if pose in WALK_FEET and c != "fuwa":
-        _, _, nx, ny = WALK_FEET[pose]
+    if shape in WALK_FEET and c != "fuwa":
+        _, _, nx, ny = WALK_FEET[shape]
         inner += '<ellipse cx="%g" cy="%g" rx="12" ry="7" fill="%s"/>' % (nx, ny, acc)
-    elif pose == "sit" and c != "fuwa":
+    elif shape == "sit" and c != "fuwa":
         inner += ('<ellipse cx="38" cy="152" rx="13" ry="7.5" fill="%s"/>'
                   '<ellipse cx="82" cy="152" rx="13" ry="7.5" fill="%s"/>' % (acc, acc))
     inner += _mouth(c, face, side)
@@ -304,7 +315,7 @@ def sprite(c, pose="idle", uid="a"):
     g += _topper_deco(c)
     g += _panel(c)
     g += _cheeks(c, side)
-    g += _eyes(face if pose != "blink" else "blink", side)
+    g += _eyes("blink" if pose in BLINK_OF else face, side)
     g += _mouth_line(c, face, side)
     return g
 

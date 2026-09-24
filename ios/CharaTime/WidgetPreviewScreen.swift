@@ -9,13 +9,17 @@ import CTRender
 /// `WidgetScene` で描く。ホーム画面のウィジェットは実時刻でしか動かないので、ここで
 /// `-CTTime`（その時刻の姿）と `-CTSpeed`（早送りでエントリ切替）を見る（プラン §9 Phase 3 の 3-2）。
 ///
-/// **ここで分からないこと**: 着色・クリアの外観、StandBy、メモリ。それはホーム画面に置いて見る
-/// （`scripts/home-screen.sh`）。
+/// 疑似アニメが入なら、ここでもマスク書体のタイマーで動く（アプリにも同じ書体を登録してある）。
+/// タイマーは本物の時計で数えるので、`-CTTime`・`-CTSpeed` で変わるのはエントリの姿だけ。
+/// まばたきや寝息の刻みは、いまの壁時計の秒で動く。
+/// **ここで分からないこと**: 拡張が止まっていても動くか、着色・クリアの外観、StandBy、メモリ。
+/// それはホーム画面に置いて見る（`scripts/home-screen.sh`）。
 struct WidgetPreviewScreen: View {
 
     let input: WorldInput
     let world: SceneWorld
     let settings: CTStore.Settings
+    let motion: WidgetMotion
     let timeWarp: TimeWarp
 
     /// 描き直しの間隔（秒）。エントリが替わった瞬間を、早送りでも取りこぼさない細かさ。
@@ -51,7 +55,7 @@ struct WidgetPreviewScreen: View {
 
     private func widget(_ family: WidgetSlot.Family, at now: Date) -> some View {
         let size = WidgetStage.referenceSize(for: family)
-        return WidgetScene(family: family, moment: moment(family, at: now), world: world)
+        return WidgetScene(family: family, moment: moment(family, at: now), world: world, motion: motion)
             .frame(width: size.width, height: size.height)
             .clipShape(RoundedRectangle(cornerRadius: WidgetStage.cornerRadius, style: .continuous))
     }

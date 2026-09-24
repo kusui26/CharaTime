@@ -11,8 +11,10 @@ struct AmbientCueTests {
     private static let cushion = PlacedItem(id: "cu", kind: .cushion, position: RoomPoint(x: 0.3, y: 0.7))
     private static let room = Room(background: .bundled("room"), floor: .unit, items: [ball, cushion])
 
-    /// いまの絵（Tier 1）。まばたきの絵は立ち姿（idle_02）にしか無い。
-    private static let tierOne = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true)
+    /// いまの絵（Tier 1）。まばたきの絵は立ち姿（idle_02）とすわる姿（sit_02。3-2b で足した）にある。
+    private static let tierOne = AmbientArt(eyelidPoses: [.idle, .sit], sleepFrameCoversBase: true)
+    /// すわる姿のまばたきの絵が無い絵（3-2b より前の Tier 1 や、取り込んだキャラ）。
+    private static let standingOnly = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true)
     /// どの姿勢にもまぶたの差分がある絵（すわる・見上げるにもまばたきの絵を足したとき）。
     private static let everyEyelid = AmbientArt(eyelidPoses: Set(Pose.allCases), sleepFrameCoversBase: true)
 
@@ -57,6 +59,15 @@ struct AmbientCueTests {
         }
     }
 
+    @Test("すわっているときは、すわる姿の 1 コマ目を土台に、まぶたを重ねる")
+    func sittingBlinks() {
+        let sitting = cue(.sit(itemId: "cu"))
+        #expect(sitting.pose == .sit)
+        #expect(sitting.baseFrame == 0)
+        #expect(layers(sitting) == [.eyelid])
+        #expect(sitting.timerCount == 2)
+    }
+
     @Test("すわる・見上げるは、まぶたの差分があれば、その姿勢を土台にまばたく")
     func otherPosesBlinkWhenTheArtAllows() {
         let sitting = cue(.sit(itemId: "cu"), art: Self.everyEyelid)
@@ -67,12 +78,13 @@ struct AmbientCueTests {
         #expect(layers(looking) == [.eyelid])
     }
 
-    /// まぶたの差分は、まばたきの絵から作る。Tier 1 のすわる姿は 1 コマしかないので作れない。
-    /// 別の姿勢の差分を重ねると、顔の位置が違うので目の外にまぶたが浮く。
+    /// まぶたの差分は、まばたきの絵から作る。見上げる姿にはまばたきの絵が無いので作れない
+    /// （すわる姿も、まばたきの絵が無い絵なら同じ）。別の姿勢の差分を重ねると、顔の位置が違うので
+    /// 目の外にまぶたが浮く。
     @Test("まぶたの差分が無い姿勢は、1 コマ目だけを描く（タイマー 0 本）")
     func posesWithoutEyelidStayStill() {
-        for activity in [Activity.sit(itemId: "cu"), .look(itemId: nil)] {
-            let still = cue(activity)
+        let stills = [cue(.look(itemId: nil)), cue(.sit(itemId: "cu"), art: Self.standingOnly)]
+        for still in stills {
             #expect(still.baseFrame == 0)
             #expect(still.overlays.isEmpty)
             #expect(still.timerCount == 0)
