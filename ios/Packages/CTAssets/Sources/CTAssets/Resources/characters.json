@@ -1,8 +1,12 @@
 {
-  "_note": "tools/pipeline が書き出す。手で編集しない。姿勢ごとのコマ数は プラン §5.3（Tier 1 = 11 枚）",
+  "_note": "tools/pipeline が書き出す。手で編集しない。姿勢ごとのコマ数は プラン §5.3（Tier 1 = 12 枚）",
   "characters": [
     {
       "displayName": "ピヨ",
+      "eyelids": {
+        "idle": "piyo_idle_eyelid_mini",
+        "sit": "piyo_sit_eyelid_mini"
+      },
       "id": "piyo",
       "miniPoses": {
         "happy": [
@@ -14,7 +18,8 @@
           "piyo_idle_02_mini"
         ],
         "sit": [
-          "piyo_sit_01_mini"
+          "piyo_sit_01_mini",
+          "piyo_sit_02_mini"
         ],
         "sleep": [
           "piyo_sleep_01_mini",
@@ -48,7 +53,8 @@
           "piyo_idle_02"
         ],
         "sit": [
-          "piyo_sit_01"
+          "piyo_sit_01",
+          "piyo_sit_02"
         ],
         "sleep": [
           "piyo_sleep_01",
@@ -61,10 +67,15 @@
           "piyo_walk_04"
         ]
       },
-      "scale": 1.0
+      "scale": 1.0,
+      "sleepFrameCoversBase": false
     },
     {
       "displayName": "モチ",
+      "eyelids": {
+        "idle": "mochi_idle_eyelid_mini",
+        "sit": "mochi_sit_eyelid_mini"
+      },
       "id": "mochi",
       "miniPoses": {
         "happy": [
@@ -76,7 +87,8 @@
           "mochi_idle_02_mini"
         ],
         "sit": [
-          "mochi_sit_01_mini"
+          "mochi_sit_01_mini",
+          "mochi_sit_02_mini"
         ],
         "sleep": [
           "mochi_sleep_01_mini",
@@ -110,7 +122,8 @@
           "mochi_idle_02"
         ],
         "sit": [
-          "mochi_sit_01"
+          "mochi_sit_01",
+          "mochi_sit_02"
         ],
         "sleep": [
           "mochi_sleep_01",
@@ -123,10 +136,15 @@
           "mochi_walk_04"
         ]
       },
-      "scale": 0.98
+      "scale": 0.98,
+      "sleepFrameCoversBase": false
     },
     {
       "displayName": "クマオ",
+      "eyelids": {
+        "idle": "kumao_idle_eyelid_mini",
+        "sit": "kumao_sit_eyelid_mini"
+      },
       "id": "kumao",
       "miniPoses": {
         "happy": [
@@ -138,7 +156,8 @@
           "kumao_idle_02_mini"
         ],
         "sit": [
-          "kumao_sit_01_mini"
+          "kumao_sit_01_mini",
+          "kumao_sit_02_mini"
         ],
         "sleep": [
           "kumao_sleep_01_mini",
@@ -173,7 +192,8 @@
           "kumao_idle_02"
         ],
         "sit": [
-          "kumao_sit_01"
+          "kumao_sit_01",
+          "kumao_sit_02"
         ],
         "sleep": [
           "kumao_sleep_01",
@@ -186,10 +206,15 @@
           "kumao_walk_04"
         ]
       },
-      "scale": 1.06
+      "scale": 1.06,
+      "sleepFrameCoversBase": false
     },
     {
       "displayName": "フワ",
+      "eyelids": {
+        "idle": "fuwa_idle_eyelid_mini",
+        "sit": "fuwa_sit_eyelid_mini"
+      },
       "id": "fuwa",
       "miniPoses": {
         "happy": [
@@ -201,7 +226,8 @@
           "fuwa_idle_02_mini"
         ],
         "sit": [
-          "fuwa_sit_01_mini"
+          "fuwa_sit_01_mini",
+          "fuwa_sit_02_mini"
         ],
         "sleep": [
           "fuwa_sleep_01_mini",
@@ -235,7 +261,8 @@
           "fuwa_idle_02"
         ],
         "sit": [
-          "fuwa_sit_01"
+          "fuwa_sit_01",
+          "fuwa_sit_02"
         ],
         "sleep": [
           "fuwa_sleep_01",
@@ -248,10 +275,15 @@
           "fuwa_walk_04"
         ]
       },
-      "scale": 1.02
+      "scale": 1.02,
+      "sleepFrameCoversBase": false
     },
     {
       "displayName": "チップ",
+      "eyelids": {
+        "idle": "chip_idle_eyelid_mini",
+        "sit": "chip_sit_eyelid_mini"
+      },
       "id": "chip",
       "miniPoses": {
         "happy": [
@@ -263,7 +295,8 @@
           "chip_idle_02_mini"
         ],
         "sit": [
-          "chip_sit_01_mini"
+          "chip_sit_01_mini",
+          "chip_sit_02_mini"
         ],
         "sleep": [
           "chip_sleep_01_mini",
@@ -297,7 +330,8 @@
           "chip_idle_02"
         ],
         "sit": [
-          "chip_sit_01"
+          "chip_sit_01",
+          "chip_sit_02"
         ],
         "sleep": [
           "chip_sleep_01",
@@ -310,7 +344,8 @@
           "chip_walk_04"
         ]
       },
-      "scale": 1.0
+      "scale": 1.0,
+      "sleepFrameCoversBase": false
     }
   ],
   "schemaVersion": 1,

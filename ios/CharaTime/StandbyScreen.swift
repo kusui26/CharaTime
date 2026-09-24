@@ -32,8 +32,8 @@ struct StandbyScreen: View {
             if Self.showsSpikePreview {
                 SpikePreviewScreen()
             } else if Self.showsWidgetPreview, let world = model.world {
-                WidgetPreviewScreen(input: model.input, world: world,
-                                    settings: model.state.settings, timeWarp: model.timeWarp)
+                WidgetPreviewScreen(input: model.input, world: world, settings: model.state.settings,
+                                    motion: model.widgetMotion, timeWarp: model.timeWarp)
             } else if let world = model.world {
                 StandbyView(input: model.input, world: world,
                             settings: model.state.settings, battery: model.battery,
@@ -82,10 +82,17 @@ struct StandbyScreen: View {
         switch kind {
         case .room: EmptyView()      // 全画面で出すので、ここには来ない
         case .dayPlan: titled(DayPlanListView(input: model.input), kind.title)
-        case .settings:
-            titled(SettingsSummaryView(settings: model.state.settings, widget: model.state.widget),
-                   kind.title)
+        case .settings: titled(settingsSummary, kind.title)
         }
+    }
+
+    /// 設定画面。ウィジェットの疑似アニメの入／切だけは、ここで書き換えられる（3-2b）。
+    private var settingsSummary: some View {
+        SettingsSummaryView(
+            settings: model.state.settings, widget: model.state.widget,
+            pseudoAnimation: Binding(get: { model.state.widget.usesPseudoAnimation },
+                                     set: { model.setPseudoAnimation($0) }),
+            widgetCapability: model.widgetCapability)
     }
 
     private func titled(_ view: some View, _ title: String) -> some View {

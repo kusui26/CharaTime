@@ -53,16 +53,18 @@ struct SceneLook: Sendable, Equatable {
     var showsSparkles: Bool
     /// キャラ（影と吹き出しを含む）の同一性。変わると、滑らせずに消えて現れる（3-C ④'）。
     var characterIdentity: Int
+    /// 疑似アニメで描くときの材料。nil なら止めた 1 枚で描く（描画の段が 5 分ごとの切り替えまで）。
+    var ambient: AmbientLook?
 
     static func standby(reducesMotion: Bool) -> SceneLook {
         SceneLook(stills: false, flourishes: !reducesMotion, bubble: .standby,
-                  showsSparkles: true, characterIdentity: 0)
+                  showsSparkles: true, characterIdentity: 0, ambient: nil)
     }
 
-    static func widget(identity: Int, tone: WidgetTone) -> SceneLook {
+    static func widget(identity: Int, tone: WidgetTone, ambient: AmbientLook?) -> SceneLook {
         SceneLook(stills: true, flourishes: false,
                   bubble: tone == .fullColor ? .widget : BubbleStyle.widget.tinted(),
-                  showsSparkles: false, characterIdentity: identity)
+                  showsSparkles: false, characterIdentity: identity, ambient: ambient)
     }
 }
 
@@ -104,6 +106,7 @@ struct SceneLayers: View {
             EffectsView(state: state, room: world.room, layout: layout, definitions: world.definitions,
                         palette: palette, seconds: seconds, showsSparkles: look.showsSparkles)
                 .zIndex(Depth.effects)
+            sparkles.zIndex(Depth.effects)
             bubble.zIndex(Depth.bubble)
         }
     }
@@ -115,8 +118,13 @@ struct SceneLayers: View {
         ZStack {
             ShadowView(position: state.position, layout: layout, flourish: flourish,
                        characterScale: world.character.scale)
-            CharacterView(character: world.character, position: state.position, pick: pick,
-                          layout: layout, flourish: flourish)
+            if let ambient = look.ambient {
+                AmbientCharacterView(character: world.character, position: state.position,
+                                     cue: ambient.cue, layout: layout, anchor: ambient.anchor)
+            } else {
+                CharacterView(character: world.character, position: state.position, pick: pick,
+                              layout: layout, flourish: flourish)
+            }
         }
         .id(look.characterIdentity)
         .transition(.opacity)
@@ -128,10 +136,34 @@ struct SceneLayers: View {
             BubbleView(bubble: bubble, layout: layout, characterPosition: state.position,
                        characterHeight: layout.characterHeight(at: state.position,
                                                                characterScale: world.character.scale),
-                       palette: palette, style: look.bubble)
+                       palette: palette, style: look.bubble, window: window(for: bubble))
                 .id(look.characterIdentity)
                 .transition(.opacity)
         }
+    }
+
+    /// 時報の吹き出しだけは、疑似アニメで描くとき 30 秒で隠す（3-C ③）。ほかの吹き出しは出したまま。
+    private func window(for bubble: Bubble) -> BubbleWindow? {
+        guard bubble.kind == .clock, let ambient = look.ambient,
+              let window = ambient.clockBubbleWindow else { return nil }
+        return BubbleWindow(window: window, anchor: ambient.anchor)
+    }
+
+    /// ミラーボールでおどるときの光の粒（疑似アニメの段が 4fps のときだけ、動かし方に入っている）。
+    @ViewBuilder
+    private var sparkles: some View {
+        if let ambient = look.ambient, !ambient.sparkleWindows.isEmpty, let ball = danceBallFrame {
+            AmbientSparkles(windows: ambient.sparkleWindows, ball: ball, anchor: ambient.anchor,
+                            palette: palette, unit: layout.unit)
+        }
+    }
+
+    /// おどっているミラーボールの枠。
+    private var danceBallFrame: CGRect? {
+        guard case .dance(let itemID) = state.activity,
+              let item = world.room.items.first(where: { $0.id == itemID }),
+              let definition = world.definitions[item.kind] else { return nil }
+        return layout.itemFrame(item, definition: definition)
     }
 }
 

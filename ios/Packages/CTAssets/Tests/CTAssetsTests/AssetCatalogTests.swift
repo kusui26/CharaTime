@@ -38,7 +38,8 @@ struct AssetCatalogTests {
         #expect(characters.count == 5)
         for character in characters {
             let names = Pose.allCases.flatMap { character.poses[$0] ?? [] }
-            #expect(names.count == 11, Comment(rawValue: "\(character.id) は \(names.count) 枚"))
+            // Tier 1 の 12 枚（すわる姿のまばたきを 3-2b で足した）。
+            #expect(names.count == 12, Comment(rawValue: "\(character.id) は \(names.count) 枚"))
             for name in names {
                 let missing = Self.missingFiles(for: name, in: catalog)
                 #expect(missing.isEmpty, Comment(rawValue: "\(character.id): \(missing)"))
@@ -59,6 +60,20 @@ struct AssetCatalogTests {
                         Comment(rawValue: "\(character.id) の \(pose.rawValue): \(minis)"))
             }
             for name in Pose.allCases.flatMap({ character.miniPoses[$0] ?? [] }) {
+                let missing = Self.missingFiles(for: name, in: catalog)
+                #expect(missing.isEmpty, Comment(rawValue: "\(character.id): \(missing)"))
+            }
+        }
+    }
+
+    /// まぶたの差分は、まばたきの絵のある姿勢だけ（Tier 1 では立ち姿とすわる姿）。ウィジェットのまばたきに使う。
+    @Test("まぶたの差分（mini）が、どのキャラにも立ち姿とすわる姿のぶんそろっている")
+    func everyEyelidExists() throws {
+        let catalog = try #require(Self.catalog("Characters"))
+        for character in try Catalog.characters() {
+            #expect(character.eyelids.keys.sorted { $0.rawValue < $1.rawValue } == [.idle, .sit],
+                    Comment(rawValue: "\(character.id): \(character.eyelids)"))
+            for name in character.eyelids.values {
                 let missing = Self.missingFiles(for: name, in: catalog)
                 #expect(missing.isEmpty, Comment(rawValue: "\(character.id): \(missing)"))
             }
@@ -93,6 +108,7 @@ struct AssetCatalogTests {
         let expected: [(String, Set<String>)] = [
             ("Characters", Set(characters.flatMap { character in
                 Pose.allCases.flatMap { (character.poses[$0] ?? []) + (character.miniPoses[$0] ?? []) }
+                    + Array(character.eyelids.values)
             })),
             ("Items", Set(items.map(\.assetName)))
         ]

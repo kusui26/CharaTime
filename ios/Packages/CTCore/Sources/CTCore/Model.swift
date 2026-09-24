@@ -8,7 +8,8 @@ import Foundation
 
 // MARK: - 見た目
 
-/// 1 体ぶんに用意する姿勢。Tier 1（プラン §5.3）は idle 2 / walk 4 / sit 1 / sleep 2 / happy 2 の 11 枚。
+/// 1 体ぶんに用意する姿勢。Tier 1（プラン §5.3）は idle 2 / walk 4 / sit 2 / sleep 2 / happy 2 の 12 枚
+/// （idle と sit の 2 コマ目はまばたき）。
 public enum Pose: String, Codable, Sendable, CaseIterable {
     case idle, walk, sit, sleep, happy
     case lookUp          // Tier 2
@@ -113,21 +114,34 @@ public struct Character: Codable, Sendable, Equatable, Identifiable {
     /// ウィジェット拡張のメモリは約 30 MB しかない。待受モードの絵は 1 コマ展開すると約 1.9 MB に
     /// なるので、ウィジェットは小さく焼いたこちらを読む。無い姿勢は `poses` の絵で描く。
     public var miniPoses: [Pose: [String]]
+    /// まぶたの差分（mini）のアセット名。まばたきの絵がある姿勢だけ（プラン 3-C ⑫）。
+    ///
+    /// パイプラインが、まばたきの絵と目を開けた絵の違う画素だけを残して作る。ウィジェットの
+    /// 疑似アニメは、目を開けた絵の上にこれを重ねてまばたかせる（土台＋差分。D-17）。
+    public var eyelids: [Pose: String]
+    /// 寝息の 2 コマ目が、1 コマ目をすっぽり覆えるか。パイプラインが画素で判定する（3-C ⑫）。
+    ///
+    /// 分からないときは覆えないとみなす。覆えないとみなして 2 枚を出し分けても見た目は崩れないが、
+    /// 覆えると決めつけて重ねると、1 コマ目の縁がはみ出して見える。
+    public var sleepFrameCoversBase: Bool
     public var origin: Origin
 
     public init(id: String, displayName: String, scale: Double = 1.0,
                 personality: Personality, poses: [Pose: [String]],
-                miniPoses: [Pose: [String]] = [:], origin: Origin = .bundled) {
+                miniPoses: [Pose: [String]] = [:], eyelids: [Pose: String] = [:],
+                sleepFrameCoversBase: Bool = false, origin: Origin = .bundled) {
         self.id = id
         self.displayName = displayName
         self.scale = scale
         self.personality = personality
         self.poses = poses
         self.miniPoses = miniPoses
+        self.eyelids = eyelids
+        self.sleepFrameCoversBase = sleepFrameCoversBase
         self.origin = origin
     }
 
-    // mini はあとから足した項目。無い JSON（取り込んだキャラなど）も読めるようにする。
+    // mini・まぶた・寝息の判定はあとから足した項目。無い JSON（取り込んだキャラなど）も読めるようにする。
     public init(from decoder: any Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         id = try box.decode(String.self, forKey: .id)
@@ -136,7 +150,14 @@ public struct Character: Codable, Sendable, Equatable, Identifiable {
         personality = try box.decode(Personality.self, forKey: .personality)
         poses = try box.decode([Pose: [String]].self, forKey: .poses)
         miniPoses = try box.decodeIfPresent([Pose: [String]].self, forKey: .miniPoses) ?? [:]
+        eyelids = try box.decodeIfPresent([Pose: String].self, forKey: .eyelids) ?? [:]
+        sleepFrameCoversBase = try box.decodeIfPresent(Bool.self, forKey: .sleepFrameCoversBase) ?? false
         origin = try box.decode(Origin.self, forKey: .origin)
+    }
+
+    /// ウィジェットの疑似アニメのために、この絵が持っているもの（`AmbientCue.cue` に渡す）。
+    public var ambientArt: AmbientArt {
+        AmbientArt(eyelidPoses: Set(eyelids.keys), sleepFrameCoversBase: sleepFrameCoversBase)
     }
 
     /// その姿勢のコマ数。0 のときは呼び出し側が idle に落とす。

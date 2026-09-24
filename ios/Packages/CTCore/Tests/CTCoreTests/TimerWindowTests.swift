@@ -30,6 +30,52 @@ struct TimerWindowTests {
         #expect((breath.digits + breath.complement.digits).sorted() == Array(0...9))
     }
 
+    @Test("集まりをずらすと、10 で一周する")
+    func shiftingWrapsAround() {
+        #expect(DigitSet([2, 7]).shifted(by: 3) == DigitSet([0, 5]))
+        #expect(DigitSet([1, 4, 7]).shifted(by: 9) == DigitSet([0, 3, 6]))
+        #expect(DigitSet([0, 5]).shifted(by: -3) == DigitSet([2, 7]))
+        #expect(DigitSet([]).shifted(by: 4) == DigitSet([]))
+    }
+
+    // MARK: - 書体の少ない形
+
+    @Test("秒の一の位の窓は、0 から始まるいちばん小さい並びに回し、回したぶんだけ進める")
+    func canonicalRotatesSecondOnes() {
+        let blink = WindowTerm(digits: DigitSet([2, 7]), position: .secondOnes, advanceSeconds: 0.75).canonical
+        #expect(blink.digits == DigitSet([0, 5]))
+        #expect(blink.advanceSeconds == 3.75)
+        let odd = WindowTerm(digits: .odd, position: .secondOnes, advanceSeconds: 0).canonical
+        #expect(odd.digits == .even)
+        #expect(odd.advanceSeconds == 1)
+        let already = WindowTerm(digits: DigitSet([0, 3, 6]), position: .secondOnes, advanceSeconds: 0)
+        #expect(already.canonical == already)
+    }
+
+    @Test("秒の一の位でない窓は、回さない")
+    func canonicalKeepsOtherDigits() {
+        let tens = WindowTerm(digits: .firstHalfMinute, position: .secondTens, advanceSeconds: 0)
+        #expect(tens.canonical == tens)
+        let minute = WindowTerm(digits: DigitSet([3]), position: .minuteOnes, advanceSeconds: 0)
+        #expect(minute.canonical == minute)
+    }
+
+    /// 回した形は、元の窓とまったく同じ時刻に開いて閉じる。描き手はこちらを描く。
+    @Test("回した窓は、元の窓と同じ時刻に開く")
+    func canonicalOpensAtTheSameTimes() {
+        let windows = BlinkRhythm.candidates.map(BlinkRhythm.window(for:))
+            + [.when(.odd), .when(DigitSet.sleepBreath.complement), .when(.even, advancedBy: 0.75)]
+        let start = TestClock.today(18, 59, 50)
+        for window in windows {
+            let canonical = window.canonical
+            for step in 0..<(30 * 20) {
+                let time = start.addingTimeInterval(Double(step) * 0.05 + 0.001)
+                #expect(canonical.isOpen(at: time, calendar: calendar) == window.isOpen(at: time, calendar: calendar),
+                        "\(window.terms.map(\.digits.key)) が \(step) 番目で食い違う")
+            }
+        }
+    }
+
     // MARK: - 桁
 
     /// 「15:32:11」なら、秒の一の位 1・十の位 1、分の一の位 2・十の位 3。

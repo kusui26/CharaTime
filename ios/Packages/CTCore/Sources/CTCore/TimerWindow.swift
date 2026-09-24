@@ -29,6 +29,12 @@ public struct DigitSet: Hashable, Sendable {
     /// 書体の名前などに使う短い名前。{2, 7} なら「27」。
     public var key: String { digits.map(String.init).joined() }
 
+    /// どの数字にも `seconds` を足した集まり（10 で一周する）。{2, 7} を 3 ずらすと {0, 5}。
+    public func shifted(by seconds: Int) -> DigitSet {
+        let digitCount = Self.allDigits.count
+        return DigitSet(digits.map { (($0 + seconds) % digitCount + digitCount) % digitCount })
+    }
+
     static let allDigits = Array(0...9)
 
     /// 偶数の秒だけ開く。よろこぶの 2 コマの出し分けと、光の粒に使う。
@@ -84,6 +90,22 @@ public struct WindowTerm: Hashable, Sendable {
         self.position = position
         self.advanceSeconds = advanceSeconds
     }
+
+    /// 同じ時刻に開き、書体の少なくて済む形（プラン §9 Phase 3 の 3-2b）。
+    ///
+    /// 秒の一の位は、表示を k 秒進めると、開く数字の集まりが k だけずれる。だから集まりを
+    /// k だけ回して、そのぶん k 秒進めても、開く時刻は変わらない（{2, 7} は {0, 5} を 3 秒進めた形）。
+    /// 回した集まりのうち、数字の並びがいちばん小さいものを選ぶ（同じなら回す量の小さいほう）。
+    /// こうすると、まばたきの 15 通りが {0, 5} と {0, 3, 6} の 2 本の書体で足りる。
+    /// ほかの桁は 10 で一周しないので、そのまま返す。
+    public var canonical: WindowTerm {
+        guard position == .secondOnes else { return self }
+        let rotations = DigitSet.allDigits.map { shift in (shift: shift, set: digits.shifted(by: shift)) }
+        guard let best = rotations.min(by: { $0.set.digits.lexicographicallyPrecedes($1.set.digits) })
+        else { return self }
+        return WindowTerm(digits: best.set, position: position,
+                          advanceSeconds: advanceSeconds + Double(best.shift))
+    }
 }
 
 /// いつ見せるか。項が 1 つならタイマー 1 本。2 つなら、マスクを入れ子にした「かつ」で 2 本。
@@ -108,6 +130,9 @@ public struct TimerWindow: Hashable, Sendable {
     public func and(_ other: TimerWindow) -> TimerWindow {
         TimerWindow(terms: terms + other.terms)
     }
+
+    /// 同じ時刻に開き、書体の少なくて済む形（`WindowTerm.canonical`）。描き手はこちらを描く。
+    public var canonical: TimerWindow { TimerWindow(terms: terms.map(\.canonical)) }
 
     /// その時刻に開いているか。
     ///

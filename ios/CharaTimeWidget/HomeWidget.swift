@@ -35,6 +35,8 @@ struct HomeEntry: TimelineEntry {
     let moment: WidgetMoment
     /// 描くキャラと部屋。同梱データが読めなかったときは nil（落とさずに理由を出す）。
     let world: SceneWorld?
+    /// 動かしてよいか（疑似アニメの設定・書体・低電力モード。タイムラインを作ったときに決まる）。
+    var motion: WidgetMotion = .still
 }
 
 struct HomeProvider: TimelineProvider {
@@ -69,16 +71,18 @@ enum HomeEntries {
             let now = dates.first ?? Date()
             return [HomeEntry(date: now, moment: .sample(room: state.currentRoom, at: now), world: nil)]
         }
+        let motion = WidgetMotion.current(for: state.widget)
         let input = state.worldInput(character: character)
         // 背景の写真は読まない（大きく、拡張のメモリを食う。D-20）。ウィジェットは図形の部屋で描く。
         let world = SceneWorld.bundled(character: character, room: input.room)
         let layout = WidgetStage.stage(for: family).layout(
             size: size, room: world.room, geometry: world.spriteGeometry, characterScale: character.scale)
         return WidgetMoments.make(at: dates, input: input, settings: state.settings, layout: layout)
-            .map { HomeEntry(date: $0.date, moment: $0, world: world) }
+            .map { HomeEntry(date: $0.date, moment: $0, world: world, motion: motion) }
     }
 
     /// 見本（ギャラリーと、読み込み中の仮の絵）。同梱の先頭のキャラが、同梱の部屋に立つ。
+    /// 見本は動かさない（止めた 1 枚。置いたあとのウィジェットだけが、設定に従って動く）。
     static func sample(at date: Date) -> HomeEntry {
         let room = BundledRoom.room
         let world = Catalog.charactersOrEmpty().first.map { SceneWorld.bundled(character: $0, room: room) }
@@ -93,7 +97,8 @@ struct HomeWidgetView: View {
 
     var body: some View {
         if let world = entry.world {
-            WidgetScene(family: WidgetSlot.Family(family), moment: entry.moment, world: world)
+            WidgetScene(family: WidgetSlot.Family(family), moment: entry.moment, world: world,
+                        motion: entry.motion)
         } else {
             Text("キャラクターのデータを読めませんでした")
                 .font(.footnote)

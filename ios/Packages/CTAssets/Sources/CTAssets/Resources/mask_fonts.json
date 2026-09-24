@@ -1,0 +1,64 @@
+{
+  "_note": "tools/pipeline が書き出す。手で編集しない。並びは CTCore の MaskFontFamily.digitSets と同じ",
+  "fonts": [
+    {
+      "digits": [
+        0,
+        5
+      ],
+      "name": "CTMask05"
+    },
+    {
+      "digits": [
+        0,
+        3,
+        6
+      ],
+      "name": "CTMask036"
+    },
+    {
+      "digits": [
+        0,
+        2,
+        4,
+        6,
+        8
+      ],
+      "name": "CTMask02468"
+    },
+    {
+      "digits": [
+        0,
+        1,
+        5,
+        6
+      ],
+      "name": "CTMask0156"
+    },
+    {
+      "digits": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "name": "CTMask012567"
+    },
+    {
+      "digits": [
+        0
+      ],
+      "name": "CTMask0"
+    },
+    {
+      "digits": [
+        0,
+        1,
+        2
+      ],
+      "name": "CTMask012"
+    }
+  ]
+}

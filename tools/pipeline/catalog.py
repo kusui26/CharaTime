@@ -42,18 +42,23 @@ def write_imageset(catalog_dir, name, image_paths):
     return imageset
 
 
-def update_characters(json_path, poses_by_character, mini_by_character, geometry):
-    """`characters.json` のコマ一覧（待受モード用とウィジェット用）と、絵の枠の情報を差し替える。
+def update_characters(json_path, poses_by_character, mini_by_character, ambient_by_character, geometry,
+                      frame_count):
+    """`characters.json` のコマ一覧（待受モード用とウィジェット用）、疑似アニメのための絵の性質
+    （まぶたの差分・寝息の 2 コマ目が覆えるか）、絵の枠の情報を差し替える。
 
     **性格や表示名は人が調整した値なので触らない。** パイプラインが持つのは
-    「どの姿勢に何枚あるか」と「絵のどこが足元か」だけで、
-    それ以外は既にある JSON を尊重する。
+    「どの姿勢に何枚あるか」と「絵のどこが足元か」のように絵から決まることだけで、
+    それ以外は既にある JSON を尊重する。先頭の注記の枚数も、コマ割り（FRAMES）から書く。
     """
     def apply(entry, value):
         entry["poses"] = value
         entry["miniPoses"] = mini_by_character[entry["id"]]
+        entry.update(ambient_by_character[entry["id"]])
+    note = ("tools/pipeline が書き出す。手で編集しない。姿勢ごとのコマ数は プラン §5.3（Tier 1 = %d 枚）"
+            % frame_count)
     return _update_json(json_path, "characters", poses_by_character, apply,
-                        top_level={"spriteGeometry": geometry})
+                        top_level={"spriteGeometry": geometry, "_note": note})
 
 
 def update_items(json_path, asset_by_item, aspect_by_item):

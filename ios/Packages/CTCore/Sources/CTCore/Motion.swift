@@ -95,12 +95,13 @@ public enum Motion {
             return Int(localSeconds * happyFramesPerSecond) % frameCount
         case .sleep:
             return Int(localSeconds / sleepSecondsPerFrame) % frameCount
-        case .idle:
-            // 立ち止まっているときは目を開けたまま。ときどき 1 コマだけまばたく。
+        case .idle, .sit:
+            // 立ち止まっているとき・すわっているときは目を開けたまま。ときどき 1 コマだけまばたく
+            // （2 コマ目がまばたきの絵。すわる姿の 2 コマ目は 3-2b で足した）。
             let interval = blinkIntervalSeconds + rng.unit(11) * blinkVarianceSeconds
             let phase = localSeconds.truncatingRemainder(dividingBy: interval)
             return phase < blinkDurationSeconds ? 1 : 0
-        case .sit, .lookUp, .surprised:
+        case .lookUp, .surprised:
             return 0
         }
     }

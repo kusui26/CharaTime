@@ -113,8 +113,8 @@ public extension RenderCapability {
 
     /// 面と端末の状態から、実際に使う段を決める（3-C ⑤ の表を上から順に）。
     ///
-    /// 迷ったら下げる。上げてよいのは、確かめた OS で、設定が入で、フルカラーで描いていて、
-    /// 省電力でも Reduce Motion でも減光中でもないときだけ。
+    /// 迷ったら下げる。上げてよいのは、確かめた OS で、設定が入で、単色（vibrant）で描いておらず、
+    /// 省電力でも Reduce Motion でも減光中でもないときだけ。着色・クリアは 1fps まで。
     static func resolve(_ context: RenderContext) -> RenderCapability {
         if let fixed = fixedCapability(for: context) { return fixed }
         return Swift.min(ceiling(for: context.system), throttle(for: context))
@@ -140,18 +140,22 @@ public extension RenderCapability {
     /// 設定・省電力・描き分け・面の制約による頭打ち。**迷ったら下げる**ので、
     /// 頭打ちが重なったら低いほうを採る。
     private static func throttle(for context: RenderContext) -> RenderCapability {
-        // 着色・クリア（accented）はタイマーが止まらないが、色の違いが消える（3-0）。重ねる絵を
-        // fullColor で描いて見えると確かめるまで上げない（3-2b）。単色（vibrant）は細かい動きが読めない。
+        // 単色（vibrant）は細かい動きが読めない。
         let heldDown = !context.pseudoAnimationEnabled
             || context.reduceMotion
             || context.lowPowerMode
-            || context.tone != .fullColor
+            || context.tone == .vibrant
         let byState: RenderCapability = heldDown ? .timelineTransition : .ambient4fps
+
+        // 着色・クリア（accented）は 1fps まで。タイマーは止まらず、重ねる絵（まぶた・コマ）も
+        // fullColor で色を保つ（3-2b でホーム画面を収録して確かめた）。光の粒（4fps）は図形なので
+        // この描き方では色を失い、見え方も確かめていない。
+        let byTone: RenderCapability = context.tone == .accented ? .ambient1fps : .ambient4fps
 
         // Live Activity は 4KB の制約があり、コマ数を増やしても載らない。
         let bySurface: RenderCapability = context.surface == .liveActivity
             ? .ambient1fps : .ambient4fps
 
-        return Swift.min(byState, bySurface)
+        return Swift.min(byState, byTone, bySurface)
     }
 }

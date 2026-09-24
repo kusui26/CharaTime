@@ -75,6 +75,19 @@ public enum Catalog {
         (try? characters()) ?? []
     }
 
+    /// 疑似アニメのマスク書体の一覧（`tools/pipeline/masks.py` が書く `mask_fonts.json`）。
+    ///
+    /// 書体そのものはアプリとウィジェット拡張の `UIAppFonts` で登録する（パッケージの中の書体は
+    /// 登録できない）。ここにあるのは、どの名前の書体があるはずか、だけ。
+    public static func maskFonts() throws -> [MaskFontEntry] {
+        try decode(MaskFontCatalog.self, from: "mask_fonts").fonts
+    }
+
+    /// 読めなければ空を返す版。
+    public static func maskFontsOrEmpty() -> [MaskFontEntry] {
+        (try? maskFonts()) ?? []
+    }
+
     private static func decode<T: Decodable>(_ type: T.Type, from name: String) throws -> T {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json") else {
             throw CatalogError.missingResource("\(name).json")
@@ -98,6 +111,22 @@ struct CharacterCatalog: Decodable {
 struct ItemCatalog: Decodable {
     var schemaVersion: Int
     var items: [ItemDefinition]
+}
+
+struct MaskFontCatalog: Decodable {
+    var fonts: [MaskFontEntry]
+}
+
+/// マスク書体 1 本。`digits` に入る数字だけが 1em の塗りつぶしで、ほかは空（3-C ④ 原則 3）。
+public struct MaskFontEntry: Decodable, Sendable, Equatable {
+    /// 書体の名前（PostScript 名）。`CTMask05` の形。
+    public var name: String
+    public var digits: [Int]
+
+    public init(name: String, digits: [Int]) {
+        self.name = name
+        self.digits = digits
+    }
 }
 
 /// 部屋に置けるものの定義。

@@ -13,9 +13,10 @@ python3 tools/pipeline/pipeline.py --check  # 焼かずに整合だけ見る
 
 | 出力 | 中身 |
 |---|---|
-| `ios/.../Resources/Characters.xcassets` | 5 体 × 11 枚 × 3 倍率 |
+| `ios/.../Resources/Characters.xcassets` | 5 体 × 12 枚 × 3 倍率。同じ 12 枚のウィジェット用の小さい版（mini）と、まぶたの差分（立ち姿とすわる姿。mini） |
 | `ios/.../Resources/Items.xcassets` | アイテム 7 種 × 3 倍率 |
-| `characters.json` の `poses` と `spriteGeometry` | コマの名前と、絵の枠 |
+| `characters.json` の `poses`・`miniPoses`・`eyelids`・`sleepFrameCoversBase`・`spriteGeometry` | コマの名前、まぶたの差分、寝息の 2 コマ目が 1 コマ目を覆えるか、絵の枠 |
+| `ios/Shared/Fonts` と `mask_fonts.json` | 疑似アニメのマスク書体 7 本（`masks.py`。プラン D-29） |
 | `items.json` の `assetName` と `aspectRatio` | アセット名と縦横比 |
 
 **性格・表示名・大きさの比は人が調整した値なので触らない。** パイプラインが書き換えるのは
@@ -36,7 +37,13 @@ python3 tools/pipeline/pipeline.py --check  # 焼かずに整合だけ見る
 この機械には rsvg-convert も cairosvg も Inkscape も入っていないので、
 **headless Chrome** を使う（`rasterize.py`）。`--default-background-color=00000000` で
 背景を透明にしたまま、指定した画素数にベクタから直接描く。倍率ごとに描き直すので
-拡大縮小によるぼやけが出ない。1 回の起動で 11 枚を横に並べて焼き、Pillow で切り分ける。
+拡大縮小によるぼやけが出ない。1 回の起動で 12 枚を横に並べて焼き、Pillow で切り分ける。
+
+**Chrome の描き方は、列の中の位置で縁の画素がわずかに変わる**（同じ絵を別の位置に置くと、輪郭の
+なめらかさの値が最大 100 ほど違う。256 画素ごとにそろえても消えない）。同じ位置なら毎回同じバイトになるので、
+焼き直しても差分は出ない。ただし **コマを途中に足すと、その後ろのコマが 1 つずつずれて、縁の画素が変わる**
+（3-2b ですわる姿のまばたきを足したとき、ねる・よろこぶの PNG が変わった。見た目には分からない）。
+1 枚ずつ Chrome を起動すれば位置に依らなくなるが、焼く時間が 3 倍になるので、そうしていない。
 
 ## Phase 2 で生成 AI の絵に差し替えるとき
 
