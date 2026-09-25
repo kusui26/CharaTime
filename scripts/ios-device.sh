@@ -5,7 +5,7 @@
 # シミュレータで分かることは scripts/ios-loop.sh が全部やる。このスクリプトが要るのは
 # **シミュレータでは分からないこと**を見るときだけ（プラン §8.3）。
 #   ウィジェットの実際の更新間隔 / 透過ウィジェットのずれ / StandBy / 常時表示 /
-#   電池と発熱 / 疑似アニメが成立するか（Phase 0 のスパイク）
+#   電池と発熱 / ウィジェットの疑似アニメが実機で動くか（3-2b。Phase 0 のスパイクで成立を確かめた）
 #
 # Xcode.app を開かずに済ませる。メモリ 8 GB・スワップ逼迫の機械では、Xcode を
 # 常駐させないことがそのまま速さになる（プラン §8.4、R-15）。
@@ -13,7 +13,7 @@
 # 使い方:
 #   scripts/ios-device.sh                    下ごしらえだけ（生成と署名の点検）
 #   scripts/ios-device.sh --install          ビルドして端末へ入れて起動する
-#   scripts/ios-device.sh --install --screen spike   スパイクの下見画面で開く
+#   scripts/ios-device.sh --install --screen widgets  ウィジェットの下見の画面で開く
 #   scripts/ios-device.sh --install --time 20:30     その時刻に固定して開く
 #
 # 初回は署名の Team ID が要る。.env.local に書いておくと、プロジェクトを生成し
@@ -23,7 +23,7 @@
 #   # CHARATIME_TEAM_ID= の行に 10 桁の Team ID を入れる
 #
 # **無料アカウントの署名は 7 日で切れる。** 切れたら同じコマンドで入れ直す。
-# スパイクの観察（丸 1 日の電池測定を含む）は、入れてから 7 日以内に終える。
+# （いまは Developer Program の署名で、期限は 1 年。無料アカウントに戻したときだけ気にする）
 #
 set -euo pipefail
 
@@ -60,7 +60,7 @@ parse_args() {
     case "$1" in
       --install) install_app=true; shift ;;
       # 何も指定しなければ待受モードで開く。指定できるのは確認用の画面だけ。
-      --screen)  screen="${2:?--screen には画面の名前が必要です（room / band / dayPlan / settings / spike）}"; shift 2 ;;
+      --screen)  screen="${2:?--screen には画面の名前が必要です（room / band / dayPlan / settings / widgets）}"; shift 2 ;;
       --time)    fixed_time="${2:?--time には 20:30 のような時刻が必要です}"; shift 2 ;;
       --speed)   time_speed="${2:?--speed には倍率が必要です}"; shift 2 ;;
       -h|--help) sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -175,7 +175,7 @@ build_and_install() {
   xcrun devicectl device process launch --device "${udid}" \
     "${BUNDLE_ID}" "${launch_args[@]+"${launch_args[@]}"}" >/dev/null
 
-  printf '\033[1;32m✓ 入りました（署名は 7 日で切れます）\033[0m\n'
+  printf '\033[1;32m✓ 入りました\033[0m\n'
 }
 
 main() {

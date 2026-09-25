@@ -41,7 +41,7 @@ enum RobotTiming {
     static let longPressSeconds = 1.2
     /// ホーム画面のページ数の上限。これだけめくって見つからなければ、無いものとする。
     static let maxPages = 8
-    /// ギャラリーでウィジェットの見本をめくる回数の上限。スパイクと本番を合わせて 20 枚ほどある。
+    /// ギャラリーでウィジェットの見本をめくる回数の上限。スパイクがあったころは 20 枚ほどあった。
     static let maxGallerySwipes = 30
 }
 
@@ -53,10 +53,10 @@ struct RobotInput {
 
     private let environment = ProcessInfo.processInfo.environment
 
-    /// 置くウィジェット。`表示名@大きさ` を `|` でつなぐ（例「スパイク F 4 本@小|スパイク F 組み方@大」）。
+    /// 置くウィジェット。`表示名@大きさ` を `|` でつなぐ（例「CharaTime@大|CharaTime@中」）。
     ///
     /// 表示名（`configurationDisplayName`）は**そのまま**書く。一部分では選ばない
-    /// （「F 1 本」と「F 14 本」のように、一部分が重なる名前があるため）。
+    /// （スパイクの「F 1 本」と「F 14 本」のように、一部分が重なる名前がありうるため）。
     /// 大きさはギャラリーの表示に合わせて「小」「中」「大」。省くと最初に見つかったもの。
     /// **1 回の実行でまとめて置く。** xcodebuild の立ち上げに 1 分ほどかかるため。
     var widgets: [WidgetChoice] {

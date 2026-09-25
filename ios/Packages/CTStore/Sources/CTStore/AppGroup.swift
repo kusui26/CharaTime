@@ -22,7 +22,7 @@ public enum AppGroup {
 ///
 /// 拡張が名乗るときと、アプリが作り直しを頼むとき（`WidgetCenter.reloadTimelines(ofKind:)`）に
 /// 同じ名前を使う。**変えると、置いてあるウィジェットは別のものとして扱われ、置き直しになる。**
-/// 名前を指して頼むのは、スパイクのウィジェット（3-0a で測っている最中）を巻き込まないため。
+/// 名前を指して頼むのは、この名前のウィジェットだけを作り直すため（ほかの種類を足しても巻き込まない）。
 public enum WidgetKind {
     public static let home = "CharaTimeHome"
 }

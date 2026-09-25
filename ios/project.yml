@@ -56,19 +56,12 @@ targets:
       # 疑似アニメのマスク書体（tools/pipeline が焼く）と、書体の確認。ウィジェットの下見と設定画面で使う。
       - path: Shared/Fonts
       - path: Shared/Sources
-      # スパイクの見た目だけ本体アプリでも描けるようにする。
-      # **手元でマスクフォントが正しく効くかを先に確かめるため**で、
-      # 実機での判定（拡張が止まっていても描き直されるか）はこれでは分からない。
-      - path: CharaTimeSpikeWidget/Shared
-      - path: CharaTimeSpikeWidget/Fonts
     dependencies:
       - package: CTCore
       - package: CTAssets
       - package: CTRender
       - package: CTStore
       - target: CharaTimeWidgetExtension
-      # スパイクは判定が出たら丸ごと消す（プラン §9 Phase 0 の 0-9〜0-11）。
-      - target: CharaTimeSpikeWidgetExtension
     settings:
       groups: [iPhoneOnly]
       base:
@@ -85,8 +78,8 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        # 疑似アニメのマスク書体（ウィジェット拡張と同じ 7 本。並びは tools/pipeline/masks.py と同じ）と、
-        # スパイクの確認画面（`-CTScreen spike`）の書体（スパイクを消すときに一緒に消す）。
+        # 疑似アニメのマスク書体（ウィジェット拡張と同じ 7 本。並びは tools/pipeline/masks.py と同じ）。
+        # アプリにも登録するのは、ウィジェットの下見の画面で同じ動きを見せるため。
         UIAppFonts:
           - CTMask05.ttf
           - CTMask036.ttf
@@ -95,11 +88,6 @@ targets:
           - CTMask012567.ttf
           - CTMask0.ttf
           - CTMask012.ttf
-          - CTSpikeMaskEven.ttf
-          - CTSpikeMaskOdd.ttf
-          - CTSpikeMaskSet27.ttf
-          - CTSpikeMaskSet012.ttf
-          - CTSpikeGauge.ttf
         # 待受モードは画面を点けたままにする。表示中だけ true に切り替える
         # （プラン §4.4）ので、ここでは既定のままにしておく。
     entitlements:
@@ -133,7 +121,8 @@ targets:
         CFBundleDevelopmentRegion: ja
         CFBundleLocalizations: [ja]
         # 疑似アニメのマスク書体（tools/pipeline/masks.py が焼く 7 本）。**拡張の UIAppFonts で登録する。**
-        # 実行時に登録した書体を、OS のタイマーの描き直しが使うかは確かめていない（スパイクはこの形で動いた）。
+        # 実行時に登録した書体を、OS のタイマーの描き直しが使うかは確かめていない（この形で動くことは
+        # Phase 0 のスパイクと 3-2b の本番で確かめた）。
         UIAppFonts:
           - CTMask05.ttf
           - CTMask036.ttf
@@ -149,37 +138,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.app.charatime
-
-  # ウィジェット疑似アニメの実機スパイク（プラン §9 Phase 0 の 0-9〜0-11、D-11）。
-  #
-  # **本番のウィジェット拡張とは別のターゲットにする。** 拡張はターゲットごとに
-  # 別プロセスで動くので、非公式の手法を試して落ちても、本番のウィジェットは
-  # 巻き添えにならない。判定が出たらこのターゲットごと消す。
-  CharaTimeSpikeWidgetExtension:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: CharaTimeSpikeWidget
-    settings:
-      groups: [iPhoneOnly]
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.charatime.spike
-    info:
-      path: CharaTimeSpikeWidget/Info.plist
-      properties:
-        CFBundleDisplayName: CharaTime スパイク
-        CFBundleDevelopmentRegion: ja
-        CFBundleLocalizations: [ja]
-        # マスクフォントを登録する。ウィジェット拡張の Info.plist で
-        # UIAppFonts が効くかどうかも、このスパイクで確かめる点のひとつ。
-        UIAppFonts:
-          - CTSpikeMaskEven.ttf
-          - CTSpikeMaskOdd.ttf
-          - CTSpikeMaskSet27.ttf
-          - CTSpikeMaskSet012.ttf
-          - CTSpikeGauge.ttf
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
   # シミュレータのホーム画面を操作するロボット（プラン §9 Phase 3 の 3-0d、Q-16）。
   #
@@ -208,7 +166,6 @@ schemes:
       targets:
         CharaTime: all
         CharaTimeWidgetExtension: all
-        CharaTimeSpikeWidgetExtension: all
     run:
       config: Debug
   # ロボット専用。CharaTime のスキームに混ぜると、ふだんのビルドが UI テストの分だけ重くなる。

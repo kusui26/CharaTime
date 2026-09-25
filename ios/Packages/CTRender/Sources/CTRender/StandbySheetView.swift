@@ -6,6 +6,7 @@ import CTStore
 ///
 /// **書き換えられるのは、ウィジェットの疑似アニメの入／切だけ**（3-2b。電池を入と切で
 /// 測れるようにするため。Q-15）。ほかの設定の書き換えは、ウィジェットの設定画面（3-C ⑩）で作る。
+/// ウィジェットが作り直すたびに残す記録（メモリ・作り直した時刻）も、ここで見せる（3-2c）。
 public struct SettingsSummaryView: View {
 
     public let settings: CTStore.Settings
@@ -14,13 +15,22 @@ public struct SettingsSummaryView: View {
     public let pseudoAnimation: Binding<Bool>?
     /// いまのホーム画面ウィジェットの描画の段（アプリから見た見込み）。nil なら出さない。
     public let widgetCapability: RenderCapability?
+    /// ウィジェットの記録。nil なら出さない。
+    public let widgetRecord: WidgetDiagnostics?
+    /// 記録の時刻を「きょう」と見比べる基準。記録は実時刻なので、時刻の早送りはかけない。
+    public let now: Date
+    public let calendar: Calendar
 
     public init(settings: CTStore.Settings, widget: WidgetSettings,
-                pseudoAnimation: Binding<Bool>? = nil, widgetCapability: RenderCapability? = nil) {
+                pseudoAnimation: Binding<Bool>? = nil, widgetCapability: RenderCapability? = nil,
+                widgetRecord: WidgetDiagnostics? = nil, now: Date = Date(), calendar: Calendar = .current) {
         self.settings = settings
         self.widget = widget
         self.pseudoAnimation = pseudoAnimation
         self.widgetCapability = widgetCapability
+        self.widgetRecord = widgetRecord
+        self.now = now
+        self.calendar = calendar
     }
 
     public var body: some View {
@@ -43,6 +53,9 @@ public struct SettingsSummaryView: View {
                 Text("既定は切です（電池の減り方を測ってから決めます）。視差効果を減らす設定のあいだは、"
                      + "まばたき・寝息のような小さな動きだけにして、横にすべる動きときらめきを止めます。"
                      + "低電力モードのあいだは、5 分ごとに絵が変わるだけになります。")
+            }
+            if let widgetRecord {
+                WidgetRecordSection(diagnostics: widgetRecord, now: now, calendar: calendar)
             }
             Section {
                 Text("ほかの設定の書き換えは、ウィジェットの設定画面で作ります。いまは待受モードの見え方を"

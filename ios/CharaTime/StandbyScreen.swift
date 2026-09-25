@@ -19,19 +19,13 @@ struct StandbyScreen: View {
     private static let startsWithBandEditor =
         ProcessInfo.processInfo.arguments.contains("band")
 
-    /// `-CTScreen spike` で、スパイクの下見画面を出す（確認用）。
-    private static let showsSpikePreview =
-        ProcessInfo.processInfo.arguments.contains("spike")
-
     /// `-CTScreen widgets` で、ホーム画面ウィジェットの下見画面を出す（確認用。3-2）。
     private static let showsWidgetPreview =
         ProcessInfo.processInfo.arguments.contains("widgets")
 
     var body: some View {
         Group {
-            if Self.showsSpikePreview {
-                SpikePreviewScreen()
-            } else if Self.showsWidgetPreview, let world = model.world {
+            if Self.showsWidgetPreview, let world = model.world {
                 WidgetPreviewScreen(input: model.input, world: world, settings: model.state.settings,
                                     motion: model.widgetMotion, timeWarp: model.timeWarp)
             } else if let world = model.world {
@@ -82,7 +76,9 @@ struct StandbyScreen: View {
         switch kind {
         case .room: EmptyView()      // 全画面で出すので、ここには来ない
         case .dayPlan: titled(DayPlanListView(input: model.input), kind.title)
-        case .settings: titled(settingsSummary, kind.title)
+        case .settings:
+            titled(settingsSummary, kind.title)
+                .onAppear { model.reloadWidgetRecord() }
         }
     }
 
@@ -92,7 +88,9 @@ struct StandbyScreen: View {
             settings: model.state.settings, widget: model.state.widget,
             pseudoAnimation: Binding(get: { model.state.widget.usesPseudoAnimation },
                                      set: { model.setPseudoAnimation($0) }),
-            widgetCapability: model.widgetCapability)
+            widgetCapability: model.widgetCapability,
+            // ウィジェットが作り直すたびに残した記録（3-2c）。記録は実時刻なので、時刻の早送りはかけない。
+            widgetRecord: model.widgetRecord, now: Date(), calendar: model.input.calendar)
     }
 
     private func titled(_ view: some View, _ title: String) -> some View {

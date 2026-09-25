@@ -9,7 +9,7 @@
 # 使い方:
 #   scripts/home-screen.sh build                     アプリとロボットをビルドし、アプリを入れ直す
 #   scripts/home-screen.sh gallery                   置けるウィジェットの名前と大きさを並べる
-#   scripts/home-screen.sh place "スパイク F 4 本@小" …   置く（表示名@大きさ。--clear で先に全部外す）
+#   scripts/home-screen.sh place "CharaTime@大" …   置く（表示名@大きさ。--clear で先に全部外す）
 #   scripts/home-screen.sh clear                     CharaTime のウィジェットを全部外す
 #   scripts/home-screen.sh shot [名前]               ウィジェットのあるページを撮る
 #   scripts/home-screen.sh record <秒> [名前]        そのページを画面収録して、点滅を数える
