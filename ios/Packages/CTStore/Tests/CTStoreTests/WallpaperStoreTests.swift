@@ -64,7 +64,7 @@ struct WallpaperStoreTests {
 
     // MARK: - 取り込む
 
-    @Test("取り込むと、スクショを保存し、大と中の枠で切り抜いて、設定に名前を書く")
+    @Test("取り込むと、スクショを保存し、ページのいちばん上の大の枠で切り抜いて、設定に名前を書く")
     func importsAndCrops() throws {
         let store = Self.temporaryStore()
         let data = Self.screenshot(marks: [Mark(x: Self.largeTopLeft.x, y: Self.largeTopLeft.y, color: Self.red),
@@ -74,7 +74,7 @@ struct WallpaperStoreTests {
                                                   stamp: "1")
         #expect(settings.wallpaper.light == "wallpaper-light-1")
         #expect(settings.iconStyle == .labeled)
-        #expect(settings.slots.map(\.slot) == [Self.large, Self.medium])
+        #expect(settings.slots.map(\.slot) == [Self.large])
         let large = try #require(settings.slot(for: .large))
         #expect(large.frame == PixelRect(x: 79, y: 270, width: 1049, height: 1095))
         let cropName = try #require(large.crops.light)
@@ -129,7 +129,19 @@ struct WallpaperStoreTests {
             let crop = try #require(name.flatMap(store.images.load))
             #expect(Self.color(of: crop, x: 0, y: 0) == Self.red)
         }
-        #expect(nudged.slot(for: .medium)?.frame == settings.slot(for: .medium)?.frame)
+    }
+
+    /// D-31 より前は、中（3 段目）も切り抜いていた。切り抜き直すときに外し、ファイルは片づけが消す。
+    @Test("前に作った中の切り抜きは、切り抜き直すと設定から外れる")
+    func dropsTheOldMediumCrop() throws {
+        let store = Self.temporaryStore()
+        var settings = try store.importScreenshot(Self.screenshot(), as: .light, style: .labeled,
+                                                  into: WidgetSettings(), stamp: "1")
+        settings.slots.append(SlotSetting(slot: Self.medium, frame: PixelRect(x: 79, y: 1474, width: 1049, height: 493),
+                                          crops: AppearanceImages(light: "crop-medium-0-2-light-1")))
+        let recropped = try store.recrop(settings, nudging: [Self.large: PixelOffset(dx: 1, dy: 0)], stamp: "2")
+        #expect(recropped.slots.map(\.slot) == [Self.large])
+        #expect(!recropped.imageNames.contains("crop-medium-0-2-light-1"))
     }
 
     @Test("ラベルの有無を変えると、別の表の枠で切り抜き直す（寄せた分は捨てる）")

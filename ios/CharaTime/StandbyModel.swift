@@ -50,10 +50,14 @@ final class StandbyModel {
         keepScreenAwake(false)
     }
 
-    /// 前面に戻ったら電池を測り直す。**背面では画面を点けたままにしない。**
+    /// 前面に戻ったら、電池とウィジェットの記録を読み直す。**背面では画面を点けたままにしない。**
     func scenePhaseChanged(to phase: ScenePhase) {
         keepScreenAwake(phase == .active)
-        if phase == .active { readBattery() }
+        guard phase == .active else { return }
+        readBattery()
+        // ホーム画面でウィジェットを置いたり外したりして戻ってきたら、置き方のガイドの「いまの様子」や
+        // 透過背景のラベルの有無に映す（どちらもウィジェットの記録から読む。3-4）。
+        reloadWidgetRecord()
     }
 
     // MARK: - 同梱データ
@@ -149,7 +153,7 @@ final class StandbyModel {
         persist(reloadingWidgets: true)
     }
 
-    /// ウィジェット拡張が残した記録（3-2c）。書くのは拡張なので、設定画面を開くたびに読み直す。
+    /// ウィジェット拡張が残した記録（3-2c）。書くのは拡張なので、設定の画面を開くたびと、前面に戻るたびに読み直す。
     private(set) var widgetRecord = WidgetDiagnostics()
 
     func reloadWidgetRecord() {
@@ -239,14 +243,13 @@ extension CTCore.Character {
 extension StandbyModel {
 
     /// ウィジェットが知らせた大きさ（`WidgetReload.displaySize`）から読んだ、ホーム画面のラベルの有無。
-    /// まだ分からなければ nil（大も中も置いていない、または 3-3 より前の記録しか無い）。
-    var detectedIconStyle: SlotGeometry.IconStyle? {
-        let geometry = SlotGeometry.iPhone402x874
-        return [WidgetSlot.Family.large, .medium].lazy.compactMap { family in
-            self.widgetRecord.latestDisplaySize(of: family)
-                .flatMap { geometry.iconStyle(of: family, size: $0) }
-        }.first
+    var iconStyleReading: SlotGeometry.IconStyleReading {
+        SlotGeometry.iPhone402x874.iconStyleReading(from: widgetRecord)
     }
+
+    /// 見分けたラベルの有無。まだ分からなければ nil（大も中も置いていない、表に無い大きさ、
+    /// または 3-3 より前の記録しか無い）。
+    var detectedIconStyle: SlotGeometry.IconStyle? { iconStyleReading.style }
 
     /// 壁紙のスクショを取り込み、切り抜く。失敗したら理由を返す（画面に出す）。
     func importWallpaper(_ data: Data, as appearance: Appearance,

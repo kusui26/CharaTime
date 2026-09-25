@@ -9,6 +9,8 @@ public enum SettingsRoute: Hashable, Sendable {
     case transparentBackground
     /// 透過背景の枠を確かめて、寄せる画面（3-3）。
     case transparentAlignment
+    /// 置き方のガイド（ウィジェットのページの作り方。3-4）。
+    case placementGuide
 }
 
 /// 透過背景のいまの様子。設定画面の行に出す（3-3）。

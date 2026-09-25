@@ -31,15 +31,17 @@ public enum StandbySheet: String, Identifiable, Sendable, CaseIterable {
     ///     -CTScreen room          へやを選ぶ画面を開いて起動する
     ///     -CTScreen transparent   設定の「透過背景」を開いて起動する（3-3）
     ///     -CTScreen alignment     透過背景の「位置を寄せる」を開いて起動する（3-3）
+    ///     -CTScreen guide         設定の「置き方のガイド」を開いて起動する（3-4）
     ///
     /// これが無いと、スクリーンショットで確かめられるのは待受モードの画面だけになる。
     public static func initial(from arguments: [String]) -> StandbySheet? {
         guard let index = arguments.firstIndex(of: "-CTScreen"),
               arguments.index(after: index) < arguments.endIndex else { return nil }
         let name = arguments[arguments.index(after: index)]
-        // `band` は「へや」の中の帯を直す画面、`transparent` は設定の中の透過背景の画面。
+        // `band` は「へや」の中の帯を直す画面、`transparent`・`alignment`・`guide` は設定の中の画面。
         // 開くのは同じシートなので、room と settings に読み替える。
-        let aliases = ["band": "room", "transparent": "settings", "alignment": "settings"]
+        let aliases = ["band": "room", "transparent": "settings", "alignment": "settings",
+                       "guide": "settings"]
         return StandbySheet(rawValue: aliases[name] ?? name)
     }
 }

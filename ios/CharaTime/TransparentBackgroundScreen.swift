@@ -6,7 +6,7 @@ import CTRender
 /// 透過背景を用意する画面（プラン §9 Phase 3 の 3-3）。設定 →「透過背景」から開く。
 ///
 /// ホーム画面の壁紙のスクショ（編集モードの空のページ）を、ライトとダークで 1 枚ずつ取り込む。
-/// アプリは iOS 26 の実測の表の枠で切り抜き、ウィジェットの後ろに敷く。**写真アプリを開くので、
+/// アプリは iOS 26 の実測の表の枠で切り抜き、ページのいちばん上の大の後ろに敷く（D-31）。**写真アプリを開くので、
 /// アプリの側に置く**（ウィジェット拡張と共有する CTRender は PhotosUI を使えない）。
 struct TransparentBackgroundScreen: View {
 
@@ -49,8 +49,10 @@ struct TransparentBackgroundScreen: View {
 
     private var introSection: some View {
         Section {
-            Text("ウィジェットの後ろに、ホーム画面の壁紙を敷きます。キャラとアイテムが、壁紙の上にいるように見えます。")
+            Text("大の後ろに、ホーム画面の壁紙を敷きます。キャラとアイテムが、壁紙の上にいるように見えます。")
                 .font(.callout)
+            // 透過は、大をページのいちばん上に置いてから。まだなら先にガイドへ。
+            NavigationLink("大の置き方（置き方のガイド）", value: SettingsRoute.placementGuide)
         }
     }
 
@@ -60,10 +62,12 @@ struct TransparentBackgroundScreen: View {
         }
     }
 
-    /// 透過に見えるための条件（3-C ⑦ の 5）。
+    /// 透過に見えるための条件（3-C ⑦ の 5）。「クリア」「色合い調整」では OS が背景を外すので、壁紙も部屋も
+    /// 描かない（D-28）。中と小は置き場所が決まらないので敷かない（D-31）。
     private static let conditions = [
-        "ホーム画面の外観がライトかダークのとき（着色・クリアでは、部屋の絵に戻ります）",
-        "ページには、大を上に、中をその下に置き、ほかのアイコンを置かない",
+        "ホーム画面の外観が「デフォルト」か「ダーク」のとき（「クリア」「色合い調整」では敷かず、"
+            + "キャラとアイテムだけになります）",
+        "大を 1 つ、ページのいちばん上に置く（中と小には敷きません。置き場所が決まらず、壁紙がずれるため）",
         "壁紙を替えたら、撮り直して取り込む",
         "写真のシャッフルの壁紙では使えない",
     ]
@@ -76,8 +80,8 @@ struct TransparentBackgroundScreen: View {
         } header: {
             Text("壁紙のスクショ")
         } footer: {
-            Text("撮り方: ホーム画面を長押しして編集モード（アイコンが揺れる）にし、いちばん右までめくると、"
-                 + "何もないページがあります。そこでスクショを撮ります（サイドボタンと音量を上げるボタン）。"
+            Text("撮り方: ホーム画面を長押しして編集モード（アイコンが揺れる）にし、最後のページの次に増える"
+                 + "何もないページまでめくって、スクショを撮ります（サイドボタンと音量を上げるボタン）。"
                  + "ダークは、外観をダークにしてからもう一度。")
         }
     }
@@ -105,7 +109,7 @@ struct TransparentBackgroundScreen: View {
 
     private var positionSection: some View {
         Section {
-            LabeledContent("ページの型", value: "大（上）＋中（下）")
+            LabeledContent("敷くところ", value: "ページのいちばん上の大")
             LabeledContent("アプリ名のラベル") {
                 Picker("アプリ名のラベル", selection: iconStyle) {
                     Text("あり").tag(SlotGeometry.IconStyle.labeled)
@@ -126,9 +130,13 @@ struct TransparentBackgroundScreen: View {
 
     /// ラベルの有無の選び方の説明。ウィジェットが知らせた大きさで見分けられたかで変える。
     private var iconStyleNote: String {
-        let detected = model.detectedIconStyle.map { "ウィジェットの大きさから、ラベル「\($0.label)」と分かりました。" }
-        return (detected ?? "大か中をホーム画面に置いてから開くと、ラベルの有無を自動で選びます。")
-            + "「大きいアプリアイコン」にしているときは「なし」です。"
+        let reading = switch model.iconStyleReading {
+        case .detected(let style): "ウィジェットの大きさから、ラベル「\(style.label)」と分かりました。"
+        case .notYetPlaced: "大をホーム画面に置いてから開くと、ラベルの有無を自動で選びます。"
+        // 表の枠で切り抜いても、ウィジェットの大きさと合わないので敷かれない（部屋の絵のまま）。
+        case .unknownSize: "ウィジェットが表に無い大きさです（画面の表示を拡大しているときなど）。透過背景は使えません。"
+        }
+        return reading + "「大きいアプリアイコン」にしているときは「なし」です。"
     }
 
     // MARK: - やめる

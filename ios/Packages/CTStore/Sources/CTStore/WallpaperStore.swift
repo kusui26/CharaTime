@@ -3,7 +3,7 @@ import CoreGraphics
 
 /// 透過背景の材料（壁紙のスクショ）の取り込みと切り抜き（プラン §9 Phase 3 の 3-C ⑦、3-3）。
 ///
-/// 取り込んだスクショは縮めずに置き、ページの型（大（上）＋中（下））のスロットごとに、枠で切り抜いて置く。
+/// 取り込んだスクショは縮めずに置き、ページのいちばん上の大（`SlotGeometry.largeAtTop`。D-31）の枠で切り抜いて置く。
 /// **枠を変えたら、ライトもダークも切り抜き直す**（外観で枠が食い違うと、切り替えたときにずれる）。
 /// ウィジェットは自分のスロットの切り抜きだけを読む。スクショ全体は読まない（拡張のメモリ 30 MB への備え）。
 /// 名前には `stamp`（取り込んだ時刻など）を付け、作り直すたびに別のファイルにする。古いファイルは、
@@ -86,9 +86,9 @@ public struct WallpaperStore: Sendable {
 
     private typealias SlotFrame = (slot: WidgetSlot, frame: PixelRect)
 
-    /// 表の枠（ページの型のスロットの順）。
+    /// 表の枠（透過背景を敷くスロット）。D-31 より前の中のスロットは入れないので、切り抜き直すと設定から外れる。
     private func tableFrames(geometry: SlotGeometry, style: SlotGeometry.IconStyle) -> [SlotFrame] {
-        SlotGeometry.largeOverMedium.compactMap { slot in
+        [SlotGeometry.largeAtTop].compactMap { slot in
             geometry.frame(of: slot, style: style).map { (slot: slot, frame: $0) }
         }
     }

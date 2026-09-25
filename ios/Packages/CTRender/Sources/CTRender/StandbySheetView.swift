@@ -41,6 +41,7 @@ public struct SettingsSummaryView: View {
                 row("夜は暗くする", settings.nightMode ? "はい" : "いいえ")
             }
             Section {
+                NavigationLink("置き方のガイド", value: SettingsRoute.placementGuide)
                 if let pseudoAnimation {
                     Toggle("まばたき・寝息（疑似アニメ）", isOn: pseudoAnimation)
                 } else {

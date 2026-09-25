@@ -142,11 +142,12 @@ struct WidgetSettingsTests {
 
     // MARK: - スロット
 
-    /// ページの型は大（上）＋中（下）なので、ウィジェットは自分の大きさでスロットが分かる（3-3）。
-    @Test("ウィジェットは、自分の大きさのスロットを使う。無ければ nil")
+    /// 大は 1 ページに 1 つ、いちばん上に置くので、自分の大きさでスロットが分かる（D-31）。
+    /// 中と小は置き場所が決まらないので、D-31 より前に作った中の切り抜きが残っていても使わない。
+    @Test("透過背景を使うのは、ページのいちばん上の大だけ。中と小と、用意していないときは nil")
     func slotForFamily() {
         #expect(Self.sample.slot(for: .large)?.slot == WidgetSlot(family: .large, column: 0, row: 0))
-        #expect(Self.sample.slot(for: .medium)?.slot == WidgetSlot(family: .medium, column: 0, row: 2))
+        #expect(Self.sample.slot(for: .medium) == nil)
         #expect(Self.sample.slot(for: .small) == nil)
         #expect(WidgetSettings().slot(for: .large) == nil)
     }
