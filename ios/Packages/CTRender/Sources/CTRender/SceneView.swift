@@ -104,9 +104,11 @@ struct SceneLayers: View {
             }
             character.zIndex(Depth.character)
             EffectsView(state: state, room: world.room, layout: layout, definitions: world.definitions,
-                        palette: palette, seconds: seconds, showsSparkles: look.showsSparkles)
+                        palette: palette, seconds: seconds, showsSparkles: look.showsSparkles,
+                        showsSleepMarks: look.ambient == nil)
                 .zIndex(Depth.effects)
             sparkles.zIndex(Depth.effects)
+            sleepMarks.zIndex(Depth.effects)
             bubble.zIndex(Depth.bubble)
         }
     }
@@ -143,10 +145,22 @@ struct SceneLayers: View {
     }
 
     /// 時報の吹き出しだけは、疑似アニメで描くとき 30 秒で隠す（3-C ③）。ほかの吹き出しは出したまま。
-    private func window(for bubble: Bubble) -> BubbleWindow? {
+    private func window(for bubble: Bubble) -> AnchoredWindow? {
         guard bubble.kind == .clock, let ambient = look.ambient,
               let window = ambient.clockBubbleWindow else { return nil }
-        return BubbleWindow(window: window, anchor: ambient.anchor)
+        return AnchoredWindow(window: window, anchor: ambient.anchor)
+    }
+
+    /// 疑似アニメで描くときの、寝ている「z」（5 秒ごとに z → zz → zzz）。止めた 1 枚で描くときは
+    /// `EffectsView` が、エントリの時刻で浮かんでいる途中の 3 つを描く。
+    @ViewBuilder
+    private var sleepMarks: some View {
+        if let ambient = look.ambient, state.activity.isAsleep {
+            AmbientSleepMarks(windows: ambient.sleepMarkWindows, anchor: ambient.anchor,
+                              origin: layout.point(state.position),
+                              height: layout.characterHeight(at: state.position, characterScale: 1),
+                              ink: palette.clockInk)
+        }
     }
 
     /// ミラーボールでおどるときの光の粒（疑似アニメの段が 4fps のときだけ、動かし方に入っている）。

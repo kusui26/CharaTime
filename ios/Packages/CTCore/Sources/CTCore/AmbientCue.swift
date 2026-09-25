@@ -10,22 +10,24 @@ public enum AmbientLayer: Hashable, Sendable {
     case clockBubble
     /// ミラーボールの光の粒（0〜3）。
     case sparkle(Int)
+    /// 寝ているときの「z」（1・2 は 2 つ目・3 つ目。0 番の 1 つ目は窓を使わず出したまま）。
+    case sleepMark(Int)
 
     /// タイマーが上限を超えるときに外す順（小さいほど先）。nil は外さない。
     ///
-    /// **キャラの動きは最後まで残す**（3-C ④）。外すのは光の粒、その次に時報の吹き出し。
+    /// **キャラの動きは最後まで残す**（3-C ④）。外すのは飾り（光の粒・寝ている z）、その次に時報の吹き出し。
     var dropRank: Int? {
         switch self {
-        case .sparkle:        0
-        case .clockBubble:    1
-        case .eyelid, .frame: nil
+        case .sparkle, .sleepMark: 0
+        case .clockBubble:         1
+        case .eyelid, .frame:      nil
         }
     }
 }
 
 /// 重ねるものの速さ。描画の段（`RenderCapability`）が 1fps までなら、`.quarterSecond` を外す。
 public enum AmbientPace: Int, Sendable, Comparable {
-    /// 1 秒に 1 回まで変わる（まばたき・寝息・よろこぶ・時報）。
+    /// 1 秒に 1 回まで変わる（まばたき・寝息・寝ている z・よろこぶ・時報）。
     case perSecond = 1
     /// 0.25 秒ずつずらして重ね、1 秒に 4 回変わる（光の粒）。
     case quarterSecond = 4
@@ -106,7 +108,7 @@ public struct AmbientCue: Hashable, Sendable {
         keeping { $0.pace <= pace }
     }
 
-    /// タイマーを `maximum` 本までに収める。光の粒、時報の吹き出しの順に外す。
+    /// タイマーを `maximum` 本までに収める。飾り（光の粒・寝ている z）、時報の吹き出しの順に外す。
     public func fitted(toTimers maximum: Int = maximumTimers) -> AmbientCue {
         guard timerCount > maximum,
               let rank = overlays.compactMap(\.layer.dropRank).min() else { return self }
@@ -160,10 +162,17 @@ public extension AmbientCue {
     private static func sleeping(coversBase: Bool) -> AmbientCue {
         let exhale = AmbientOverlay(layer: .frame(1), window: .when(.sleepBreath))
         guard !coversBase else {
-            return AmbientCue(pose: .sleep, baseFrame: 0, overlays: [exhale])
+            return AmbientCue(pose: .sleep, baseFrame: 0, overlays: [exhale] + sleepMarks)
         }
         let inhale = AmbientOverlay(layer: .frame(0), window: .when(DigitSet.sleepBreath.complement))
-        return AmbientCue(pose: .sleep, baseFrame: nil, overlays: [inhale, exhale])
+        return AmbientCue(pose: .sleep, baseFrame: nil, overlays: [inhale, exhale] + sleepMarks)
+    }
+
+    /// 寝ている「z」。1 つ目は出したまま、2 つ目・3 つ目を順に出し、5 秒ごとに z → zz → zzz と増やす
+    /// （2026-09-25。1 秒に 1 回までの、その場での小さな変化なので、Reduce Motion でも残る。D-19）。
+    private static var sleepMarks: [AmbientOverlay] {
+        [AmbientOverlay(layer: .sleepMark(1), window: .when(.secondSleepMark)),
+         AmbientOverlay(layer: .sleepMark(2), window: .when(.thirdSleepMark))]
     }
 
     /// よろこぶ 2 コマを 1 秒ごとに出し分ける。ミラーボールの前なら、光の粒も重ねる。

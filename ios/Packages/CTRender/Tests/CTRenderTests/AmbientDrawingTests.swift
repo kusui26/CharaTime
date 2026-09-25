@@ -35,6 +35,22 @@ struct AmbientDrawingTests {
         }
     }
 
+    /// 待受モードの z は道筋を浮かんでいき、ウィジェットの z はその道筋の 3 か所に置く（2026-09-25）。
+    @Test("寝ている z は、道筋を右上へ進むほど大きく、薄くなる")
+    func sleepMarksRiseGrowAndFade() {
+        let origin = CGPoint(x: 100, y: 200)
+        let marks = (0..<SleepMarkLayout.count).map {
+            SleepMarkLayout.mark(phase: SleepMarkLayout.widgetPhase($0), origin: origin, height: 100)
+        }
+        #expect(marks.count == 3)
+        for (lower, upper) in zip(marks, marks.dropFirst()) {
+            #expect(upper.center.x > lower.center.x && upper.center.y < lower.center.y)
+            #expect(upper.fontSize > lower.fontSize && upper.opacity < lower.opacity)
+        }
+        #expect(marks.allSatisfy { $0.center.y < origin.y && $0.center.x > origin.x })
+        #expect(marks[0].opacity > 0.5, "1 つ目の z（出したまま）は、はっきり見える濃さ")
+    }
+
     /// ボールの上下左右に偏らない（上は天井の紐、下は床で、見えにくくなる）。
     @Test("光の粒は、ボールの左右と上下の両側に出る")
     func sparklesSpreadOnBothSides() {

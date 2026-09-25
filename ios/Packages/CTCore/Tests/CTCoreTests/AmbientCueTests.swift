@@ -93,15 +93,29 @@ struct AmbientCueTests {
 
     // MARK: - 寝息
 
-    @Test("寝ているときは、1 コマ目を土台に、2 コマ目を 5 秒のうち 2 秒重ねる（1 本）")
+    @Test("寝ているときは、1 コマ目を土台に、2 コマ目を 5 秒のうち 2 秒重ね、z を増やしていく（3 本）")
     func sleepBreathes() {
         for activity in [Activity.sleep, .nap] {
             let sleeping = cue(activity)
             #expect(sleeping.pose == .sleep)
             #expect(sleeping.baseFrame == 0)
-            #expect(layers(sleeping) == [.frame(1)])
+            #expect(layers(sleeping) == [.frame(1), .sleepMark(1), .sleepMark(2)])
             #expect(sleeping.overlays.first?.window == .when(.sleepBreath))
-            #expect(sleeping.timerCount == 1)
+            #expect(sleeping.timerCount == 3)
+        }
+    }
+
+    /// 1 つ目の z は出したまま。2 つ目・3 つ目が順に出て、5 秒ごとに z → zz → zzz と増える（2026-09-25）。
+    @Test("寝ているときの z は、5 秒ごとに z（2 秒）→ zz（1 秒）→ zzz（2 秒）と増える")
+    func sleepMarksBuildUp() throws {
+        let sleeping = cue(.sleep)
+        let second = try #require(sleeping.overlays.first { $0.layer == .sleepMark(1) }?.window)
+        let third = try #require(sleeping.overlays.first { $0.layer == .sleepMark(2) }?.window)
+        let expected = [1, 1, 2, 3, 3]
+        for secondOfMinute in 0..<20 {
+            let time = TestClock.today(23, 10, Double(secondOfMinute) + 0.5)
+            let shown = 1 + [second, third].filter { $0.isOpen(at: time, calendar: TestClock.tokyo) }.count
+            #expect(shown == expected[secondOfMinute % 5], "\(secondOfMinute) 秒に z が \(shown) つ")
         }
     }
 
@@ -112,8 +126,8 @@ struct AmbientCueTests {
         let sleeping = cue(.sleep, art: art)
         #expect(sleeping.pose == .sleep)
         #expect(sleeping.baseFrame == nil)
-        #expect(layers(sleeping) == [.frame(0), .frame(1)])
-        #expect(sleeping.timerCount == 2)
+        #expect(layers(sleeping) == [.frame(0), .frame(1), .sleepMark(1), .sleepMark(2)])
+        #expect(sleeping.timerCount == 4)
         assertExactlyOneShown(sleeping, seconds: 10)
     }
 
@@ -195,6 +209,14 @@ struct AmbientCueTests {
         #expect(crowded.fitted(toTimers: 3).pose == .happy)
     }
 
+    /// 寝ている z は飾りなので、光の粒と同じく先に外す。寝息（キャラの動き）は最後まで残す。
+    @Test("上限を超えるときは、寝ている z を先に外し、寝息は残す")
+    func dropsSleepMarksBeforeBreathing() {
+        let sleeping = cue(.sleep, art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false))
+        #expect(layers(sleeping.fitted(toTimers: 3)) == [.frame(0), .frame(1)])
+        #expect(sleeping.limited(to: .perSecond) == sleeping)
+    }
+
     @Test("1fps までの段では、光の粒を外す")
     func limitedToOncePerSecond() {
         let dancing = cue(.dance(itemId: "ball"))
@@ -235,13 +257,15 @@ struct AmbientCueTests {
 
     // MARK: - 道具
 
-    /// 出し分ける 2 枚は、どの瞬間もちょうど 1 枚だけが見えていなければならない。
+    /// 出し分ける 2 枚（コマ）は、どの瞬間もちょうど 1 枚だけが見えていなければならない。
+    /// 数えるのはコマだけ（寝ている z のような飾りは、コマと一緒に出ていてよい）。
     private func assertExactlyOneShown(_ cue: AmbientCue, seconds: Double,
                                        sourceLocation: SourceLocation = #_sourceLocation) {
         let start = TestClock.today(14, 0, 0.05)
+        let frames = cue.overlays.filter { if case .frame = $0.layer { true } else { false } }
         for step in 0..<Int(seconds * 4) {
             let time = start.addingTimeInterval(Double(step) * 0.25)
-            let shown = cue.overlays.filter { $0.window.isOpen(at: time, calendar: TestClock.tokyo) }
+            let shown = frames.filter { $0.window.isOpen(at: time, calendar: TestClock.tokyo) }
             #expect(shown.count == 1, "\(step) 番目の時刻で \(shown.count) 枚", sourceLocation: sourceLocation)
         }
     }

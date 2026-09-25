@@ -50,6 +50,13 @@ public struct DigitSet: Hashable, Sendable {
     /// アプリの待受モードの寝息の周期（`ProceduralMotion.sleepBreathPeriodSeconds` 5.2 秒）に
     /// いちばん近い。秒の一の位は 10 秒で一周するので、5 秒の周期なら 10 秒に 2 回くり返せる。
     public static let sleepBreath = DigitSet([0, 1, 5, 6])
+    /// 秒の一の位に当てて、寝ている「z」の 2 つ目を出す秒（5 秒のうち後ろの 3 秒）。
+    ///
+    /// 1 つ目の z は出したままなので、`thirdSleepMark` と合わせて、5 秒ごとに z（2 秒）→ zz（1 秒）→
+    /// zzz（2 秒）と増えていく。回した形は一族の {0, 1, 2, 5, 6, 7} の書体で描ける（D-29）。
+    public static let secondSleepMark = DigitSet([2, 3, 4, 7, 8, 9])
+    /// 寝ている「z」の 3 つ目を出す秒（5 秒のうち後ろの 2 秒）。回した形は {0, 1, 5, 6}（寝息と同じ書体）。
+    public static let thirdSleepMark = DigitSet([3, 4, 8, 9])
 }
 
 /// 0 時から数えるタイマーの文字（「15:32:11」）の、どの桁か。

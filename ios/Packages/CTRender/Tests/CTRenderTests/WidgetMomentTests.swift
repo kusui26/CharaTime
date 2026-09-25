@@ -93,6 +93,22 @@ struct WidgetMomentTests {
         #expect(quarter.anchor == moment.anchor)
     }
 
+    /// 寝ている z の 2 つ目・3 つ目は、1 秒に 1 回までの動き。Reduce Motion（1fps まで）でも残る。
+    @Test("寝ているときは、1fps の段でも z の窓（2 つ目と 3 つ目）を持つ")
+    func sleepingLookCarriesTheMarks() throws {
+        let state = SceneState(time: Self.date(23, 30), activity: .sleep, position: BundledRoom.floor.at(0.2, 0.5),
+                               facing: .front, frame: 0)
+        let cue = AmbientCue.cue(for: state, room: BundledRoom.room, blink: DigitSet([0, 5]),
+                                 art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false))
+        let moment = WidgetMoment(date: state.time, state: state, isNight: true, leg: 0,
+                                  anchor: Self.tokyo.startOfDay(for: state.time), cue: cue)
+        let look = try #require(moment.ambientLook(at: .ambient1fps))
+        #expect(look.sleepMarkWindows.keys.sorted() == [1, 2])
+        #expect(look.sleepMarkWindows[1] == .when(.secondSleepMark))
+        #expect(look.sleepMarkWindows[2] == .when(.thirdSleepMark))
+        #expect(look.sparkleWindows.isEmpty)
+    }
+
     /// 見本（ギャラリー・読み込み中の仮の絵）は動かさない。動かし方も、立ち姿の 1 コマ目だけにしておく。
     @Test("見本は、部屋の真ん中で正面を向いて立ち、重ねるものを持たない")
     func sampleStandsStill() {
