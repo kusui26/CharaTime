@@ -23,9 +23,16 @@ struct StandbyScreen: View {
     private static let showsWidgetPreview =
         ProcessInfo.processInfo.arguments.contains("widgets")
 
+    /// `-CTScreen standBy` で、StandBy の見え方をまねる下見画面を出す（確認用。3-5）。
+    private static let showsStandByPreview =
+        ProcessInfo.processInfo.arguments.contains("standBy")
+
     var body: some View {
         Group {
-            if Self.showsWidgetPreview, let world = model.world {
+            if Self.showsStandByPreview, let world = model.world {
+                StandByPreviewScreen(input: model.input, world: world, settings: model.state.settings,
+                                     motion: model.widgetMotion, timeWarp: model.timeWarp)
+            } else if Self.showsWidgetPreview, let world = model.world {
                 WidgetPreviewScreen(input: model.input, world: world, settings: model.state.settings,
                                     motion: model.widgetMotion, timeWarp: model.timeWarp)
             } else if let world = model.world {

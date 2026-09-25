@@ -8,6 +8,8 @@ import CTStore
 /// **部屋（壁・床・窓・敷物）も中身と一緒に描く。** `containerBackground` に置くと、エントリ切替の
 /// アニメで中身だけが動き、背景と食い違う瞬間ができるため。背景を外す描き方（着色・クリア・
 /// StandBy）では部屋を描かず、キャラとアイテムだけにする（OS が背景を敷き直す）。
+/// どう見せられているか（`WidgetDisplay`）は WidgetKit の環境から読む。StandBy の黒の上と夜の赤では、
+/// 字を淡い色にし、吹き出しの塗り方を替える（3-C ⑨）。
 ///
 /// 描画の段（3-C ⑤）が 1fps 以上なら、止めた 1 枚の上で、まばたき・寝息・よろこぶを
 /// マスク書体のタイマーで出し入れする（疑似アニメ。3-C ④）。段が下がれば止めた 1 枚だけを描く。
@@ -19,6 +21,8 @@ public struct WidgetScene: View {
     public let moment: WidgetMoment
     public let world: SceneWorld
     public let motion: WidgetMotion
+    /// 見え方の決め打ち。アプリ内の下見で StandBy をまねるときだけ渡す。nil なら WidgetKit の環境に従う。
+    public let displayOverride: WidgetDisplay?
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.showsWidgetContainerBackground) private var showsBackground
@@ -26,11 +30,12 @@ public struct WidgetScene: View {
     @Environment(\.isLuminanceReduced) private var luminanceReduced
 
     public init(family: WidgetSlot.Family, moment: WidgetMoment, world: SceneWorld,
-                motion: WidgetMotion = .still) {
+                motion: WidgetMotion = .still, display: WidgetDisplay? = nil) {
         self.family = family
         self.moment = moment
         self.world = world
         self.motion = motion
+        self.displayOverride = display
     }
 
     /// エントリ切替でキャラを滑らせる長さ（秒）。OS がエントリ切替に許すアニメは最大 2 秒で、
@@ -38,30 +43,36 @@ public struct WidgetScene: View {
     static let slideSeconds: Double = 1.5
 
     public var body: some View {
-        let tone = WidgetTone(renderingMode)
-        let palette = RoomPalette.forNight(moment.isNight)
+        let display = self.display
+        let palette = display.palette(.forNight(moment.isNight))
         GeometryReader { geometry in
             let stage = WidgetStage.stage(for: family)
             let layout = stage.layout(size: geometry.size, room: world.room,
                                       geometry: world.spriteGeometry,
                                       characterScale: world.character.scale)
+            let ambient = moment.ambientLook(at: display.capability(motion: motion))
             ZStack {
-                if tone == .fullColor && showsBackground {
+                if display.drawsRoom {
                     RoomView(layout: layout, palette: palette, showsWindow: stage.showsWindow,
                              showsRug: true, isNight: moment.isNight)
                 } else {
-                    FloorHint(layout: layout)
+                    FloorHint(layout: layout, fadesEdges: display.hasDarkBackdrop)
                 }
                 SceneLayers(state: moment.state, world: world, layout: layout, palette: palette,
-                            look: .widget(identity: moment.leg, tone: tone,
-                                          ambient: moment.ambientLook(at: capability(tone: tone))),
+                            look: .widget(identity: moment.leg, tone: display.tone, ambient: ambient),
                             seconds: moment.date.timeIntervalSinceReferenceDate)
             }
-            .animation(slide, value: moment.date)
+            .animation(slide(display), value: moment.date)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenSummary)
         .containerBackground(palette.wall, for: .widget)
+    }
+
+    /// いまの見え方。決め打ちが無ければ、WidgetKit の環境から読む。
+    private var display: WidgetDisplay {
+        displayOverride ?? WidgetDisplay(tone: WidgetTone(renderingMode), showsBackground: showsBackground,
+                                         reduceMotion: reduceMotion, luminanceReduced: luminanceReduced)
     }
 
     /// VoiceOver で読む中身。キャラの名前と、吹き出しの言葉。
@@ -69,18 +80,10 @@ public struct WidgetScene: View {
         [world.character.displayName, moment.state.bubble?.text].compactMap { $0 }.joined(separator: "、")
     }
 
-    /// いまの描画の段（3-C ⑤）。OS の版・描き分け・設定・端末の状態から決める。
-    private func capability(tone: WidgetTone) -> RenderCapability {
-        RenderCapability.resolve(RenderContext(
-            surface: .homeWidget, tone: tone, pseudoAnimationEnabled: motion.pseudoAnimation,
-            reduceMotion: reduceMotion, lowPowerMode: motion.lowPowerMode,
-            luminanceReduced: luminanceReduced))
-    }
-
     /// エントリ切替の動き。Reduce Motion では滑らせず、すぐ入れ替える（D-19）。
     /// 常時表示の減光中は、OS がそもそもアニメを行わない。
-    private var slide: Animation? {
-        reduceMotion || luminanceReduced ? nil : .easeInOut(duration: Self.slideSeconds)
+    private func slide(_ display: WidgetDisplay) -> Animation? {
+        display.reduceMotion || display.luminanceReduced ? nil : .easeInOut(duration: Self.slideSeconds)
     }
 }
 
@@ -120,22 +123,42 @@ public extension WidgetMoment {
 struct FloorHint: View {
 
     let layout: SceneLayout
+    /// 帯の両端を闇へぼかすか。StandBy は背景もウィジェットの枠も見えないので、端まで塗ると
+    /// 帯の四角い端が箱の縁に見える（3-5）。着色・クリアはガラスの板が枠を見せるので、端まで塗る。
+    var fadesEdges = false
 
     /// 床の帯と、壁との境の線の濃さ。
     private static let floorOpacity: Double = 0.10
     private static let lineOpacity: Double = 0.30
     /// 境の線の太さ（舞台の高さに対する比。部屋の絵と同じ）。
     private static let lineRatio: Double = 0.005
+    /// ぼかす幅（ウィジェットの幅に対する比。両端それぞれ）。
+    private static let fadeWidthRatio: Double = 0.22
 
     var body: some View {
         Canvas { context, size in
             let horizon = layout.horizonY
-            context.fill(Path(CGRect(x: 0, y: horizon, width: size.width, height: size.height - horizon)),
-                         with: .color(.white.opacity(Self.floorOpacity)))
             let line = layout.stage.height * Self.lineRatio
-            context.fill(Path(CGRect(x: 0, y: horizon - line / 2, width: size.width, height: line)),
-                         with: .color(.white.opacity(Self.lineOpacity)))
+            fill(&context, CGRect(x: 0, y: horizon, width: size.width, height: size.height - horizon),
+                 opacity: Self.floorOpacity)
+            fill(&context, CGRect(x: 0, y: horizon - line / 2, width: size.width, height: line),
+                 opacity: Self.lineOpacity)
         }
+    }
+
+    /// 白を `opacity` の濃さで塗る。端をぼかすときは、左右の端で透明になるように塗る。
+    private func fill(_ context: inout GraphicsContext, _ rect: CGRect, opacity: Double) {
+        let white = Color.white.opacity(opacity)
+        guard fadesEdges else { return context.fill(Path(rect), with: .color(white)) }
+        let clear = Color.white.opacity(0)
+        let fade = Self.fadeWidthRatio
+        let gradient = Gradient(stops: [
+            .init(color: clear, location: 0), .init(color: white, location: fade),
+            .init(color: white, location: 1 - fade), .init(color: clear, location: 1)
+        ])
+        let start = CGPoint(x: rect.minX, y: rect.midY)
+        let end = CGPoint(x: rect.maxX, y: rect.midY)
+        context.fill(Path(rect), with: .linearGradient(gradient, startPoint: start, endPoint: end))
     }
 }
 

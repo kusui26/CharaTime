@@ -13,30 +13,46 @@ struct BubbleStyle: Sendable, Equatable {
     var tailSize: Double
     /// 枠の縁からこれ以上内側に置く。
     var edgeMargin: Double
-    /// 地の白の濃さ（0〜1）。
-    var fillOpacity: Double
+    /// 地と字の塗り方。
+    var paint: BubblePaint = .paper
 
     static let standby = BubbleStyle(fontSize: 15, horizontalPadding: 14, verticalPadding: 9,
                                      cornerRadius: 18, borderWidth: 3.5, tailSize: 11,
-                                     edgeMargin: 16, fillOpacity: 1)
+                                     edgeMargin: 16)
 
     /// ウィジェット。キャラが待受モードの半分ほどなので、吹き出しも小さくする。
     /// 字はホーム画面のアプリ名（約 12pt）と同じくらいにして、読める大きさを保つ。
     static let widget = BubbleStyle(fontSize: 12, horizontalPadding: 9, verticalPadding: 5,
                                     cornerRadius: 12, borderWidth: 2.5, tailSize: 8,
-                                    edgeMargin: 6, fillOpacity: 1)
+                                    edgeMargin: 6)
 
-    /// 着色・クリアの外観で読ませる形。
-    ///
-    /// その外観では色の違いが消え、濃さの違いだけが残る（3-0 のスパイク F）。白い地のままだと
-    /// 縁も字も地も同じ 1 色の塗りになって字が消えるので、地だけを薄くする。
-    func tinted() -> BubbleStyle {
+    /// 同じ形で、塗り方だけを替える。
+    func painted(_ paint: BubblePaint) -> BubbleStyle {
         var style = self
-        style.fillOpacity = Self.tintedFillOpacity
+        style.paint = paint
         return style
     }
+}
 
-    private static let tintedFillOpacity: Double = 0.3
+/// 吹き出しの塗り方。ウィジェットの描き分けごとに、字が読める組み合わせが違う（3-C ⑨）。
+enum BubblePaint: Sendable, Equatable {
+    /// 白い地に濃い字と縁。ふつうのホーム画面と、StandBy の昼（黒の上）。
+    case paper
+    /// 地を薄くし、字と縁は濃いまま。着色・クリアは透明度だけが残るので、白い地のままだと
+    /// 縁も字も地も同じ 1 色に塗られて字が消える（3-0 のスパイク F）。地が薄ければ字が浮く。
+    case faint
+    /// 地を黒で塗り、字と縁を淡い色にする。StandBy の夜（vibrant）は明るさだけが赤く残り、
+    /// 濃い字は消える。白い地にすると、夜の部屋で明るい赤の板が光ってしまう。黒は闇になるので
+    /// 地が無いように見え、後ろのもの（ミラーボール）を隠して字を読ませる。
+    case glow
+
+    init(_ tone: WidgetTone) {
+        switch tone {
+        case .fullColor: self = .paper
+        case .accented: self = .faint
+        case .vibrant: self = .glow
+        }
+    }
 }
 
 /// キャラの吹き出し。
@@ -82,26 +98,50 @@ struct BubbleView: View {
     private var label: some View {
         Text(bubble.text)
             .font(.system(size: style.fontSize, weight: .medium, design: .rounded))
-            .foregroundStyle(palette.outline)
+            .foregroundStyle(ink)
             .padding(.horizontal, style.horizontalPadding)
             .padding(.vertical, style.verticalPadding)
             .background(
                 RoundedRectangle(cornerRadius: style.cornerRadius)
-                    .fill(Color.white.opacity(style.fillOpacity))
+                    .fill(fill)
                     .overlay(RoundedRectangle(cornerRadius: style.cornerRadius)
-                        .stroke(palette.outline, lineWidth: style.borderWidth)))
+                        .stroke(border, lineWidth: style.borderWidth)))
     }
 
-    /// 白い三角に輪郭を付けたしっぽ。角丸の縁に少し食い込ませて、継ぎ目を隠す。
+    /// 地の色を塗った三角に、斜めの 2 辺だけ輪郭を付けたしっぽ。角丸の縁に少し食い込ませて、
+    /// 継ぎ目を隠す（付け根の辺は、吹き出しの縁と重なるので描かない）。
     /// `Triangle` は左を指す形なので、右へ向けるときだけ裏返す。
     private func tail(pointingRight: Bool) -> some View {
         Triangle()
-            .fill(Color.white.opacity(style.fillOpacity))
-            .overlay(Triangle().stroke(palette.outline, lineWidth: style.borderWidth))
+            .fill(fill)
+            .overlay(TailEdges().stroke(border, style: StrokeStyle(lineWidth: style.borderWidth,
+                                                                   lineJoin: .round)))
             .frame(width: style.tailSize, height: style.tailSize * 1.2)
             .scaleEffect(x: pointingRight ? -1 : 1)
             .offset(x: pointingRight ? -style.borderWidth : style.borderWidth)
             .zIndex(-1)
+    }
+
+    // MARK: - 塗り方（`BubblePaint`）
+
+    /// 着色・クリアで地に残す濃さ。字（濃さ 1）との差で読ませる。
+    private static let faintFillOpacity: Double = 0.3
+    /// 夜の赤で、縁を字より控えめにする濃さ。縁が字と同じ明るさだと、枠ばかりが目立つ。
+    private static let glowBorderOpacity: Double = 0.6
+
+    private var fill: Color {
+        switch style.paint {
+        case .paper: .white
+        case .faint: .white.opacity(Self.faintFillOpacity)
+        case .glow: .black
+        }
+    }
+
+    /// 字の色。夜の赤では白（明るいところほど赤く残る）。
+    private var ink: Color { style.paint == .glow ? .white : palette.outline }
+
+    private var border: Color {
+        style.paint == .glow ? .white.opacity(Self.glowBorderOpacity) : palette.outline
     }
 
     /// 吹き出しの中心。画面の外へ出ないように寄せる。
@@ -121,6 +161,17 @@ struct Triangle: Shape {
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
+        return path
+    }
+}
+
+/// しっぽの輪郭。`Triangle` の斜めの 2 辺だけで、吹き出しに付く辺は描かない。
+struct TailEdges: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         return path
     }
 }

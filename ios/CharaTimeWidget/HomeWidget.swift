@@ -18,6 +18,9 @@ struct HomeWidget: Widget {
         .configurationDisplayName(Self.displayName)
         .description(Self.summary)
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        // CarPlay には勧めない（3-5、ユーザーの判断。D-30）。iOS 26 の CarPlay は StandBy と同じ小を出せるが、
+        // 運転中に動くキャラは要らず、CarPlay での見え方も確かめていない。CarPlay の設定では「その他」に回る。
+        .disfavoredLocations([.carPlay], for: [.systemSmall])
         // 既定の余白を外し、枠いっぱいに描く。部屋・透過の背景・位置合わせの目印が、
         // 同じ枠を基準にそろう（3-C ⑥）。
         .contentMarginsDisabled()
