@@ -59,6 +59,16 @@ public struct RoomPalette: Sendable, Equatable {
         palette.clockInk = Color(hex: 0xFFF4DC)
         return palette
     }
+
+    /// 暗い後ろの上に置くときの配色（StandBy。プラン §9 Phase 3 の 3-C ⑨）。
+    ///
+    /// StandBy は背景を外して黒の上に出し、夜は明るさだけを赤く残す。昼の配色の焦げ茶の字
+    /// （昼寝の z）はどちらでも消えるので、夜の配色と同じ淡い色にする。
+    public func overDarkness() -> RoomPalette {
+        var palette = self
+        palette.clockInk = Self.night.clockInk
+        return palette
+    }
 }
 
 /// 取り込んだ画像の上で時計を読ませるための下敷き。

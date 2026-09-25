@@ -63,7 +63,7 @@ struct SceneLook: Sendable, Equatable {
 
     static func widget(identity: Int, tone: WidgetTone, ambient: AmbientLook?) -> SceneLook {
         SceneLook(stills: true, flourishes: false,
-                  bubble: tone == .fullColor ? .widget : BubbleStyle.widget.tinted(),
+                  bubble: BubbleStyle.widget.painted(BubblePaint(tone)),
                   showsSparkles: false, characterIdentity: identity, ambient: ambient)
     }
 }

@@ -12,8 +12,8 @@ import CTRender
 /// 疑似アニメが入なら、ここでもマスク書体のタイマーで動く（アプリにも同じ書体を登録してある）。
 /// タイマーは本物の時計で数えるので、`-CTTime`・`-CTSpeed` で変わるのはエントリの姿だけ。
 /// まばたきや寝息の刻みは、いまの壁時計の秒で動く。
-/// **ここで分からないこと**: 拡張が止まっていても動くか、着色・クリアの外観、StandBy、メモリ。
-/// それはホーム画面に置いて見る（`scripts/home-screen.sh`）。
+/// **ここで分からないこと**: 拡張が止まっていても動くか、着色・クリアの外観、メモリ。
+/// それはホーム画面に置いて見る（`scripts/home-screen.sh`）。StandBy は `-CTScreen standBy` でまねる。
 struct WidgetPreviewScreen: View {
 
     let input: WorldInput
@@ -40,22 +40,10 @@ struct WidgetPreviewScreen: View {
         }
     }
 
-    /// ホーム画面がその時刻に出しているエントリ（5 分の升目）と、ひとつ前のエントリから作る。
-    /// ひとつ前が要るのは、遠くへ移ったか（消えて現れるか）を決めるため。
-    private func moment(_ family: WidgetSlot.Family, at now: Date) -> WidgetMoment {
-        let size = WidgetStage.referenceSize(for: family)
-        let layout = WidgetStage.stage(for: family).layout(
-            size: size, room: world.room, geometry: world.spriteGeometry,
-            characterScale: world.character.scale)
-        let entry = WidgetTimeline.gridPoint(atOrBefore: now, calendar: input.calendar)
-        let dates = [entry.addingTimeInterval(-Schedule.gridMinutes * 60), entry]
-        return WidgetMoments.make(at: dates, input: input, settings: settings, layout: layout).last
-            ?? .sample(room: world.room, at: entry)
-    }
-
     private func widget(_ family: WidgetSlot.Family, at now: Date) -> some View {
         let size = WidgetStage.referenceSize(for: family)
-        return WidgetScene(family: family, moment: moment(family, at: now), world: world, motion: motion)
+        let moment = PreviewMoments.moment(family, at: now, input: input, world: world, settings: settings)
+        return WidgetScene(family: family, moment: moment, world: world, motion: motion)
             .frame(width: size.width, height: size.height)
             .clipShape(RoundedRectangle(cornerRadius: WidgetStage.cornerRadius, style: .continuous))
     }
@@ -66,5 +54,22 @@ struct WidgetPreviewScreen: View {
         return Text("\(ClockFormat.time(entry, calendar: input.calendar)) のエントリ ・ \(state.activity.label)")
             .font(.system(size: 13, weight: .medium, design: .rounded))
             .foregroundStyle(Palette.ink)
+    }
+}
+
+/// 下見の画面で描くエントリ。ホーム画面がその時刻に出しているもの（5 分の升目）を、
+/// ひとつ前のエントリと一緒に作る。ひとつ前が要るのは、遠くへ移ったか（消えて現れるか）を決めるため。
+enum PreviewMoments {
+
+    static func moment(_ family: WidgetSlot.Family, at now: Date, input: WorldInput, world: SceneWorld,
+                       settings: CTStore.Settings) -> WidgetMoment {
+        let size = WidgetStage.referenceSize(for: family)
+        let layout = WidgetStage.stage(for: family).layout(
+            size: size, room: world.room, geometry: world.spriteGeometry,
+            characterScale: world.character.scale)
+        let entry = WidgetTimeline.gridPoint(atOrBefore: now, calendar: input.calendar)
+        let dates = [entry.addingTimeInterval(-Schedule.gridMinutes * 60), entry]
+        return WidgetMoments.make(at: dates, input: input, settings: settings, layout: layout).last
+            ?? .sample(room: world.room, at: entry)
     }
 }

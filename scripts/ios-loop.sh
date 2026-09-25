@@ -22,6 +22,7 @@
 #   scripts/ios-loop.sh --time 14:30           その時刻の姿を撮る
 #   scripts/ios-loop.sh --time 07:00 --speed 240   7:00 から 240 倍速で動かす
 #   scripts/ios-loop.sh --screen widgets --time 21:05   ウィジェットの下見（大・中・小）を撮る
+#   scripts/ios-loop.sh --screen standBy --time 23:00   StandBy の下見（昼と、夜の赤のまね）を撮る
 #
 set -euo pipefail
 
@@ -50,7 +51,7 @@ device_name="iPhone 17 Pro"
 # 確認のために時刻をずらす（プラン §9 Phase 1 の 1-5）。空なら実時刻。
 fixed_time=""
 time_speed=""
-# 最初に開く画面（-CTScreen。widgets・settings・dayPlan など）。空なら待受モード。
+# 最初に開く画面（-CTScreen。widgets・standBy・settings・dayPlan など）。空なら待受モード。
 start_screen=""
 skip_test=false
 shot_only=false
@@ -77,7 +78,7 @@ parse_args() {
       --skip-test) skip_test=true; shift ;;
       --shot-only) shot_only=true; shift ;;
       --test-only) test_only=true; shift ;;
-      -h|--help)   sed -n '2,27p' "${BASH_SOURCE[0]}"; exit 0 ;;
+      -h|--help)   sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
       *)           die "不明な引数: $1（--help で使い方を表示）" ;;
     esac
   done
