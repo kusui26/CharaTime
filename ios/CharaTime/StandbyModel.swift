@@ -233,3 +233,95 @@ extension CTCore.Character {
         personality: Personality(activity: 0.5, nightOwl: 0.5, napiness: 0.5),
         poses: [:])
 }
+
+// MARK: - 透過背景（プラン §9 Phase 3 の 3-3）
+
+extension StandbyModel {
+
+    /// ウィジェットが知らせた大きさ（`WidgetReload.displaySize`）から読んだ、ホーム画面のラベルの有無。
+    /// まだ分からなければ nil（大も中も置いていない、または 3-3 より前の記録しか無い）。
+    var detectedIconStyle: SlotGeometry.IconStyle? {
+        let geometry = SlotGeometry.iPhone402x874
+        return [WidgetSlot.Family.large, .medium].lazy.compactMap { family in
+            self.widgetRecord.latestDisplaySize(of: family)
+                .flatMap { geometry.iconStyle(of: family, size: $0) }
+        }.first
+    }
+
+    /// 壁紙のスクショを取り込み、切り抜く。失敗したら理由を返す（画面に出す）。
+    func importWallpaper(_ data: Data, as appearance: Appearance,
+                         style: SlotGeometry.IconStyle) async -> String? {
+        await changeWallpaper { store, widget, stamp in
+            try store.importScreenshot(data, as: appearance, style: style, into: widget, stamp: stamp)
+        }
+    }
+
+    /// 枠を寄せて、切り抜き直す。
+    func nudgeWallpaper(_ offsets: [WidgetSlot: PixelOffset]) async -> String? {
+        await changeWallpaper { store, widget, stamp in
+            try store.recrop(widget, nudging: offsets, stamp: stamp)
+        }
+    }
+
+    /// ラベルの有無の表で枠を作り直す（寄せた分は捨てる。「表の値に戻す」もこれ）。
+    func setWallpaperIconStyle(_ style: SlotGeometry.IconStyle) async -> String? {
+        await changeWallpaper { store, widget, stamp in
+            try store.recrop(widget, style: style, stamp: stamp)
+        }
+    }
+
+    /// 透過背景をやめ、部屋の絵に戻す。
+    func removeWallpaper() {
+        saveTransparency(from: state.widget.removingTransparency())
+    }
+
+    /// 透過背景を作り直す。重い仕事（スクショの展開・切り抜き・PNG の書き出し）は裏で行い、
+    /// 書き戻すのは透過の項目だけにする（そのあいだに疑似アニメの入／切を変えても、消さないように）。
+    private func changeWallpaper(
+        _ change: @escaping @Sendable (WallpaperStore, WidgetSettings, String) throws -> WidgetSettings
+    ) async -> String? {
+        let widget = state.widget
+        let stamp = String(Int(Date().timeIntervalSince1970 * Self.stampPerSecond))
+        do {
+            let updated = try await Task.detached(priority: .userInitiated) {
+                try change(.shared, widget, stamp)
+            }.value
+            saveTransparency(from: updated)
+            return nil
+        } catch {
+            return String(describing: error)
+        }
+    }
+
+    /// 作り直すたびにファイルの名前を変える印の細かさ（1 秒あたり）。続けて寄せても名前がぶつからない。
+    private static let stampPerSecond: Double = 1000
+
+    /// 透過の項目（壁紙・スロット・ラベルの有無）を書き戻して保存し、ウィジェットを作り直し、
+    /// 使わなくなった画像（前の切り抜きなど）を片づける。
+    private func saveTransparency(from updated: WidgetSettings) {
+        state.widget.wallpaper = updated.wallpaper
+        state.widget.slots = updated.slots
+        state.widget.iconStyle = updated.iconStyle
+        if persist(reloadingWidgets: true) {
+            ImageStore.shared.removeAll(keeping: state.referencedImageNames)
+        }
+    }
+
+    /// `-CTImportWallpaper <ライトの名前> <ダークの名前>` で、App Group の images に置いた壁紙のスクショを
+    /// 取り込む（確認用。シミュレータで写真アプリを通さずに 3-3 を確かめる。`-CTTime` と同じ考え方）。
+    func importWallpapersForChecking(_ arguments: [String]) async {
+        guard let index = arguments.firstIndex(of: "-CTImportWallpaper") else { return }
+        reloadWidgetRecord()
+        let names = arguments.dropFirst(index + 1).prefix(Appearance.allCases.count)
+        // 先に全部読む。1 枚目を取り込むと片づけが走り、まだ参照していない 2 枚目のファイルを消すため。
+        let files = zip(Appearance.allCases, names).compactMap { appearance, name in
+            ImageStore.shared.url(for: name).flatMap { try? Data(contentsOf: $0) }.map { (appearance, $0) }
+        }
+        for (appearance, data) in files {
+            let style = detectedIconStyle ?? .labeled
+            if let failure = await importWallpaper(data, as: appearance, style: style) {
+                loadFailure = failure
+            }
+        }
+    }
+}

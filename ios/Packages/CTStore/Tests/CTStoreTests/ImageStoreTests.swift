@@ -46,6 +46,16 @@ struct ImageStoreTests {
         #expect(loaded.height == 800)
     }
 
+    /// 壁紙のスクショを画面に小さく見せるとき、丸ごと展開しない（3-3）。
+    @Test("縮めて読める。無い名前は nil")
+    func thumbnails() throws {
+        let store = Self.temporaryStore()
+        try store.store(try #require(Self.makePNG(width: 400, height: 800)), as: "wallpaper")
+        let thumbnail = try #require(store.thumbnail("wallpaper", maxPixelSize: 200))
+        #expect(thumbnail.width == 100 && thumbnail.height == 200)
+        #expect(store.thumbnail("none", maxPixelSize: 200) == nil)
+    }
+
     @Test("長辺が上限を超える画像は縮めて置く")
     func largeImagesAreScaledDown() throws {
         let store = Self.temporaryStore()

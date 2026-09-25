@@ -27,6 +27,18 @@ struct StandbyScreen: View {
     private static let showsStandByPreview =
         ProcessInfo.processInfo.arguments.contains("standBy")
 
+    /// `-CTScreen transparent`・`alignment` で、設定の中の透過背景の画面を開いた状態で起動する（確認用。3-3）。
+    private static let initialSettingsPath: [SettingsRoute] = {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("alignment") { return [.transparentBackground, .transparentAlignment] }
+        return arguments.contains("transparent") ? [.transparentBackground] : []
+    }()
+
+    /// 設定のシートの中で進んだ画面。
+    @State private var settingsPath = initialSettingsPath
+    /// 設定のシートの高さ。透過背景を開いて起動するときは、全体が見える高さで開く。
+    @State private var settingsDetent: PresentationDetent = initialSettingsPath.isEmpty ? .medium : .large
+
     var body: some View {
         Group {
             if Self.showsStandByPreview, let world = model.world {
@@ -52,6 +64,8 @@ struct StandbyScreen: View {
                              set: { sheet = $0 })) { sheetContent($0) }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
+        // 確認用: `-CTImportWallpaper` で渡した壁紙のスクショを取り込む（3-3）。渡していなければ何もしない。
+        .task { await model.importWallpapersForChecking(ProcessInfo.processInfo.arguments) }
         .onChange(of: scenePhase) { _, phase in model.scenePhaseChanged(to: phase) }
     }
 
@@ -84,8 +98,11 @@ struct StandbyScreen: View {
         case .room: EmptyView()      // 全画面で出すので、ここには来ない
         case .dayPlan: titled(DayPlanListView(input: model.input), kind.title)
         case .settings:
-            titled(settingsSummary, kind.title)
-                .onAppear { model.reloadWidgetRecord() }
+            NavigationStack(path: $settingsPath) {
+                settingsSummary.navigationTitle(kind.title).navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium, .large], selection: $settingsDetent)
+            .onAppear { model.reloadWidgetRecord() }
         }
     }
 
@@ -98,6 +115,12 @@ struct StandbyScreen: View {
             widgetCapability: model.widgetCapability,
             // ウィジェットが作り直すたびに残した記録（3-2c）。記録は実時刻なので、時刻の早送りはかけない。
             widgetRecord: model.widgetRecord, now: Date(), calendar: model.input.calendar)
+        .navigationDestination(for: SettingsRoute.self) { route in
+            switch route {
+            case .transparentBackground: TransparentBackgroundScreen(model: model)
+            case .transparentAlignment: TransparentAlignmentScreen(model: model)
+            }
+        }
     }
 
     private func titled(_ view: some View, _ title: String) -> some View {

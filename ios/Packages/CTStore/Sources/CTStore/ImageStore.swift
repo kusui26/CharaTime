@@ -93,6 +93,26 @@ public struct ImageStore: Sendable {
         return image
     }
 
+    /// 画像を縮めずに置く。透過背景の壁紙と切り抜きは、1 画素もずらせないので縮めない（3-3）。
+    public func storeExact(_ image: CGImage, as name: String) throws {
+        guard let folderURL, let target = url(for: name) else {
+            throw StoreError.noContainer(appGroup: AppGroup.identifier)
+        }
+        try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+        try Self.writePNG(image, to: target, name: name)
+    }
+
+    /// 縮めずに、そのままの画素で読む。色の情報（Display P3 など）も保つ。
+    ///
+    /// `decodeScaled` は縮小の仕組みを通るので、色の変換や画素のならしが入りうる。壁紙のスクショは
+    /// 本物の壁紙と画素でそろえたいので、こちらで読む。
+    public static func decodeExact(_ data: Data) throws -> CGImage {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0,
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw StoreError.notAnImage }
+        return image
+    }
+
     static func writePNG(_ image: CGImage, to url: URL, name: String) throws {
         guard let destination = CGImageDestinationCreateWithURL(
             url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
@@ -113,6 +133,20 @@ public struct ImageStore: Sendable {
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               CGImageSourceGetCount(source) > 0 else { return nil }
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    /// 縮めた画像を読む（画面に小さく見せるため）。長辺を `maxPixelSize` に収める。読めなければ nil。
+    ///
+    /// 壁紙のスクショ（1206×2622、展開して約 12.6 MB）を、見せるたびに丸ごと展開しないようにする。
+    public func thumbnail(_ name: String, maxPixelSize: Int) -> CGImage? {
+        guard let url = url(for: name),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceGetCount(source) > 0 else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     // MARK: - 片づけ

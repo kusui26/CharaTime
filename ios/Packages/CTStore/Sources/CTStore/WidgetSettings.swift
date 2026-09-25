@@ -20,6 +20,10 @@ public struct WidgetSettings: Codable, Sendable, Equatable {
     /// 載らず、使う側が iOS 26 の実測の表（3-C ①）で補う（3-3）。
     public var slots: [SlotSetting]
 
+    /// スロットの枠を作ったときの、アプリ名のラベルの有無（3-3）。「表の値に戻す」とき、どちらの表に
+    /// 戻すかに使う。透過背景を用意していなければ nil。
+    public var iconStyle: SlotGeometry.IconStyle?
+
     /// ページの型（3-C ⑧）。
     public var pagePreset: PagePreset
 
@@ -34,17 +38,35 @@ public struct WidgetSettings: Codable, Sendable, Equatable {
     public init(pseudoAnimation: Bool? = nil,
                 wallpaper: AppearanceImages = AppearanceImages(),
                 slots: [SlotSetting] = [],
+                iconStyle: SlotGeometry.IconStyle? = nil,
                 pagePreset: PagePreset = .standalone,
                 markersUntil: Date? = nil) {
         self.pseudoAnimation = pseudoAnimation
         self.wallpaper = wallpaper
         self.slots = slots
+        self.iconStyle = iconStyle
         self.pagePreset = pagePreset
         self.markersUntil = markersUntil
     }
 
     /// 疑似アニメを使うか。選んでいなければ既定に従う。
     public var usesPseudoAnimation: Bool { pseudoAnimation ?? Self.defaultPseudoAnimation }
+
+    /// 透過背景をやめた設定（壁紙・スロット・ラベルの有無を外す）。ファイルは片づけ
+    /// （`ImageStore.removeAll(keeping:)`）が消す。
+    public func removingTransparency() -> WidgetSettings {
+        var settings = self
+        settings.wallpaper = AppearanceImages()
+        settings.slots = []
+        settings.iconStyle = nil
+        return settings
+    }
+
+    /// その大きさのウィジェットが使うスロット（3-3）。ページの型は大（上）＋中（下）なので、
+    /// 大きさだけで決まる。同じ大きさのスロットが 2 つ以上あれば、先のほうを使う。
+    public func slot(for family: WidgetSlot.Family) -> SlotSetting? {
+        slots.first { $0.slot.family == family }
+    }
 
     /// 参照している画像の名前（壁紙と切り抜き）。片づけで残す名前に入る（`AppState.referencedImageNames`）。
     var imageNames: [String] {
@@ -59,6 +81,7 @@ public struct WidgetSettings: Codable, Sendable, Equatable {
         // スロットは 1 件ずつ読む。読めない件（知らない大きさなど）だけを捨てる。
         slots = (try? box.decodeIfPresent([Lossy<SlotSetting>].self, forKey: .slots))?
             .compactMap(\.value) ?? []
+        iconStyle = try? box.decodeIfPresent(SlotGeometry.IconStyle.self, forKey: .iconStyle)
         pagePreset = (try? box.decodeIfPresent(PagePreset.self, forKey: .pagePreset)) ?? .standalone
         markersUntil = try? box.decodeIfPresent(Date.self, forKey: .markersUntil)
     }
@@ -78,6 +101,23 @@ public struct AppearanceImages: Codable, Sendable, Equatable {
 
     /// 参照している名前。まだ無いものは除く。
     public var names: [String] { [light, dark].compactMap { $0 } }
+
+    /// その外観の名前。
+    public subscript(_ appearance: Appearance) -> String? {
+        get { appearance == .light ? light : dark }
+        set {
+            switch appearance {
+            case .light: light = newValue
+            case .dark: dark = newValue
+            }
+        }
+    }
+}
+
+/// 外観（ライト・ダーク）。透過背景の材料は、外観ごとに 1 枚ずつ要る（3-C ⑦、3-0c）。
+public enum Appearance: String, Codable, Sendable, CaseIterable {
+    case light
+    case dark
 }
 
 /// ホーム画面の、ウィジェットを置く場所。

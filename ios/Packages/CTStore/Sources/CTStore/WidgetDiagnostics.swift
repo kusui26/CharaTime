@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// ウィジェット拡張が残す記録（プラン §9 Phase 3 の 3-2c）。アプリの設定画面が読んで見せる。
 ///
@@ -40,6 +41,11 @@ public struct WidgetDiagnostics: Codable, Sendable, Equatable {
     public func latest(_ count: Int) -> [WidgetReload] {
         Array(reloads.reversed().prefix(count))
     }
+
+    /// その大きさのウィジェットが最後に知らせた大きさ（pt）。まだ知らせていなければ nil。
+    public func latestDisplaySize(of family: WidgetSlot.Family) -> CGSize? {
+        reloads.last { $0.family == family && $0.displaySize != nil }?.displaySize
+    }
 }
 
 /// タイムラインを 1 回作り直した記録。
@@ -56,15 +62,19 @@ public struct WidgetReload: Codable, Sendable, Equatable {
     public var peakBytes: UInt64
     /// 疑似アニメで描くタイムラインだったか。
     public var pseudoAnimation: Bool
+    /// ウィジェットの大きさ（pt。WidgetKit が渡す `displaySize`）。アプリはこれで、ホーム画面の
+    /// アプリ名のラベルの有無を見分ける（透過背景の枠の表を選ぶ。3-3）。3-3 より前の記録には無い。
+    public var displaySize: CGSize?
 
     public init(date: Date, family: WidgetSlot.Family, entryCount: Int, footprintBytes: UInt64,
-                peakBytes: UInt64, pseudoAnimation: Bool) {
+                peakBytes: UInt64, pseudoAnimation: Bool, displaySize: CGSize? = nil) {
         self.date = date
         self.family = family
         self.entryCount = entryCount
         self.footprintBytes = footprintBytes
         self.peakBytes = peakBytes
         self.pseudoAnimation = pseudoAnimation
+        self.displaySize = displaySize
     }
 
     func isSameReload(as other: WidgetReload) -> Bool {

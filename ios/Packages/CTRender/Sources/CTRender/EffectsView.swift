@@ -24,6 +24,8 @@ struct EffectsView: View {
     /// 寝ているときの「z」を描くか。ウィジェットの疑似アニメでは、窓で出し入れする別の部品
     /// （`AmbientSleepMarks`）が描くので、ここでは描かない。
     var showsSleepMarks: Bool = true
+    /// 「z」に影を付けるか（透過背景の壁紙の上。`InkShadow`）。
+    var shadowsInk = false
 
     /// 光点の数と、1 周にかける秒数。
     private static let sparkleCount = 9
@@ -104,6 +106,9 @@ struct EffectsView: View {
     private func drawSleepMarks(_ context: inout GraphicsContext) {
         let height = layout.characterHeight(at: state.position, characterScale: 1)
         let origin = layout.point(state.position)
+        // 影はこの「z」だけに付ける（写しに付ければ、ほかの描き物に残らない）。
+        var context = context
+        if shadowsInk { context.addFilter(.shadow(color: InkShadow.color, radius: InkShadow.radiusPoints)) }
         for index in 0..<SleepMarkLayout.count {
             let phase = (seconds / SleepMarkLayout.driftSeconds + SleepMarkLayout.widgetPhase(index))
                 .truncatingRemainder(dividingBy: 1)
@@ -140,6 +145,13 @@ struct EffectsView: View {
         resolved.shading = .color(mark.color)
         context.draw(resolved, at: point)
     }
+}
+
+/// 明るさの分からない背景（透過背景の壁紙）の上で、淡い字（z）を縁取る影。
+enum InkShadow {
+    static let color = Color.black.opacity(0.45)
+    /// ぼかしの半径（ポイント）。字の縁だけが濃くなる細さ。
+    static let radiusPoints: Double = 1.5
 }
 
 /// 浮かんでいく文字（「z」と音符）。

@@ -9,6 +9,8 @@ struct ItemView: View {
     let definition: ItemDefinition
     let layout: SceneLayout
     let palette: RoomPalette
+    /// 天井から吊るす紐を描くか。壁紙の上（透過背景）では描かない（`SceneLook.overWallpaper`）。
+    var showsCord = true
 
     /// 吊るす紐の太さ（基準のポイント。ウィジェットでは舞台と一緒に細くなる）。
     private static let cordWidth: Double = 3
@@ -16,7 +18,7 @@ struct ItemView: View {
     var body: some View {
         let frame = layout.itemFrame(item, definition: definition)
         ZStack {
-            if definition.hangsFromCeiling { cord(to: frame) }
+            if definition.hangsFromCeiling && showsCord { cord(to: frame) }
             SpriteView(assetName: definition.assetName)
                 .frame(width: frame.width, height: frame.height)
                 .position(x: frame.midX, y: frame.midY)

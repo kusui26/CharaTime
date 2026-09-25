@@ -55,16 +55,21 @@ struct SceneLook: Sendable, Equatable {
     var characterIdentity: Int
     /// 疑似アニメで描くときの材料。nil なら止めた 1 枚で描く（描画の段が 5 分ごとの切り替えまで）。
     var ambient: AmbientLook?
+    /// 利用者の壁紙の上（透過背景）に描くか。明るさの分からない背景なので、淡い字（z）に影を付ける。
+    /// 天井も無いので、吊るすアイテムの紐を描かない（紐がウィジェットの上端から生えて、見えないはずの枠が分かる）。
+    var overWallpaper = false
 
     static func standby(reducesMotion: Bool) -> SceneLook {
         SceneLook(stills: false, flourishes: !reducesMotion, bubble: .standby,
                   showsSparkles: true, characterIdentity: 0, ambient: nil)
     }
 
-    static func widget(identity: Int, tone: WidgetTone, ambient: AmbientLook?) -> SceneLook {
+    static func widget(identity: Int, tone: WidgetTone, ambient: AmbientLook?,
+                       overWallpaper: Bool = false) -> SceneLook {
         SceneLook(stills: true, flourishes: false,
                   bubble: BubbleStyle.widget.painted(BubblePaint(tone)),
-                  showsSparkles: false, characterIdentity: identity, ambient: ambient)
+                  showsSparkles: false, characterIdentity: identity, ambient: ambient,
+                  overWallpaper: overWallpaper)
     }
 }
 
@@ -98,14 +103,15 @@ struct SceneLayers: View {
         ZStack {
             ForEach(parts.behind + parts.front) { item in
                 if let definition = world.definitions[item.kind] {
-                    ItemView(item: item, definition: definition, layout: layout, palette: palette)
+                    ItemView(item: item, definition: definition, layout: layout, palette: palette,
+                             showsCord: !look.overWallpaper)
                         .zIndex(frontIDs.contains(item.id) ? Depth.itemsInFront : Depth.itemsBehind)
                 }
             }
             character.zIndex(Depth.character)
             EffectsView(state: state, room: world.room, layout: layout, definitions: world.definitions,
                         palette: palette, seconds: seconds, showsSparkles: look.showsSparkles,
-                        showsSleepMarks: look.ambient == nil)
+                        showsSleepMarks: look.ambient == nil, shadowsInk: look.overWallpaper)
                 .zIndex(Depth.effects)
             sparkles.zIndex(Depth.effects)
             sleepMarks.zIndex(Depth.effects)
@@ -159,7 +165,7 @@ struct SceneLayers: View {
             AmbientSleepMarks(windows: ambient.sleepMarkWindows, anchor: ambient.anchor,
                               origin: layout.point(state.position),
                               height: layout.characterHeight(at: state.position, characterScale: 1),
-                              ink: palette.clockInk)
+                              ink: palette.clockInk, shadowsInk: look.overWallpaper)
         }
     }
 

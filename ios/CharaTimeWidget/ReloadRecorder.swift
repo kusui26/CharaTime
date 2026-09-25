@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import CTStore
 
 /// タイムラインを作り直したことを、ウィジェットの記録に残す（プラン §9 Phase 3 の 3-2c）。
@@ -19,11 +20,12 @@ enum ReloadRecorder {
     /// 拡張を止めさせないようにするときの理由（OS のログに出る）。
     private static let activityReason = "ウィジェットの記録"
 
-    static func record(family: WidgetSlot.Family, entries: [HomeEntry]) {
+    static func record(family: WidgetSlot.Family, size: CGSize, entries: [HomeEntry]) {
         guard let sample = ProcessMemory.sample() else { return }
         let reload = WidgetReload(date: Date(), family: family, entryCount: entries.count,
                                   footprintBytes: sample.footprintBytes, peakBytes: sample.peakBytes,
-                                  pseudoAnimation: entries.first?.motion.pseudoAnimation ?? false)
+                                  pseudoAnimation: entries.first?.motion.pseudoAnimation ?? false,
+                                  displaySize: size)
         DiagnosticsStore.shared.update { $0.recording(reload) }
         ProcessInfo.processInfo.performExpiringActivity(withReason: activityReason) { expired in
             // 止められる間際の呼び出しでは、何もせずに返す（その回は 1 回目の値が残る）。

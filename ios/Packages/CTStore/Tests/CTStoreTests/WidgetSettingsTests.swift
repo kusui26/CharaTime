@@ -139,4 +139,15 @@ struct WidgetSettingsTests {
         #expect(AppearanceImages(dark: "d").names == ["d"])
         #expect(AppearanceImages(light: "l", dark: "d").names == ["l", "d"])
     }
+
+    // MARK: - スロット
+
+    /// ページの型は大（上）＋中（下）なので、ウィジェットは自分の大きさでスロットが分かる（3-3）。
+    @Test("ウィジェットは、自分の大きさのスロットを使う。無ければ nil")
+    func slotForFamily() {
+        #expect(Self.sample.slot(for: .large)?.slot == WidgetSlot(family: .large, column: 0, row: 0))
+        #expect(Self.sample.slot(for: .medium)?.slot == WidgetSlot(family: .medium, column: 0, row: 2))
+        #expect(Self.sample.slot(for: .small) == nil)
+        #expect(WidgetSettings().slot(for: .large) == nil)
+    }
 }

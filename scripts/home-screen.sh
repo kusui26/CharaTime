@@ -16,6 +16,7 @@
 #   scripts/home-screen.sh record --resume <回> [名前]   設定アプリへ行って戻る、を挟んで収録する
 #   scripts/home-screen.sh count <動画> [--widget 表題]  数えるだけ（実機の画面収録は --slots small6）
 #   scripts/home-screen.sh edit [名前]               編集モードに入って撮り、元に戻す（3-0c）
+#   scripts/home-screen.sh wallpaper [名前]          編集モードの空のページ（壁紙だけ）を撮り、元に戻す（3-3）
 #   scripts/home-screen.sh look light|dark           端末の外観（ライト・ダーク）を切り替える
 #   scripts/home-screen.sh style default|dark|clear|tinted   ホーム画面の外観（カスタマイズ）を切り替える
 #   scripts/home-screen.sh icons large|normal        アプリアイコンの大きさ（large はラベルなし）
@@ -365,6 +366,15 @@ cmd_edit() {
   run_robot testSettle
 }
 
+# 編集モードで空のページを出して撮り、元に戻す（透過背景の材料の壁紙。プラン §9 Phase 3 の 3-3）。
+# 利用者が壁紙のスクショを撮るのと同じ手順。外観は look で先に切り替えておく。
+cmd_wallpaper() {
+  local name="${1:-wallpaper}"
+  run_robot testEmptyPage
+  take_screenshot "${name}"
+  run_robot testSettle
+}
+
 cmd_look() {
   local appearance="${1:?light か dark を渡してください}"
   [[ "${appearance}" == light || "${appearance}" == dark ]] || die "外観は light か dark です: ${appearance}"
@@ -415,11 +425,11 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --device)  device_name="${2:?--device には端末名が必要です}"; shift 2 ;;
-      -h|--help) sed -n '2,33p' "${BASH_SOURCE[0]}"; exit 0 ;;
+      -h|--help) sed -n '2,34p' "${BASH_SOURCE[0]}"; exit 0 ;;
       *)         rest+=("$1"); shift ;;
     esac
   done
-  [[ ${#rest[@]} -gt 0 ]] || { sed -n '2,33p' "${BASH_SOURCE[0]}"; exit 1; }
+  [[ ${#rest[@]} -gt 0 ]] || { sed -n '2,34p' "${BASH_SOURCE[0]}"; exit 1; }
   require_tool xcrun
   local command="${rest[0]}"
   local -a args=("${rest[@]:1}")
@@ -432,6 +442,7 @@ main() {
     record)  cmd_record "${args[@]+"${args[@]}"}" ;;
     count)   cmd_count "${args[@]+"${args[@]}"}" ;;
     edit)    cmd_edit "${args[@]+"${args[@]}"}" ;;
+    wallpaper) cmd_wallpaper "${args[@]+"${args[@]}"}" ;;
     look)    cmd_look "${args[@]+"${args[@]}"}" ;;
     style)   cmd_style "${args[@]+"${args[@]}"}" ;;
     icons)   cmd_icons "${args[@]+"${args[@]}"}" ;;

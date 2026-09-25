@@ -40,6 +40,8 @@ struct HomeEntry: TimelineEntry {
     let world: SceneWorld?
     /// 動かしてよいか（疑似アニメの設定・書体・低電力モード。タイムラインを作ったときに決まる）。
     var motion: WidgetMotion = .still
+    /// 透過背景の切り抜き（3-3）。用意していなければ nil で、部屋の絵を描く。
+    var wallpaper: WidgetWallpaper?
 }
 
 struct HomeProvider: TimelineProvider {
@@ -63,7 +65,8 @@ struct HomeProvider: TimelineProvider {
         let entries = HomeEntries.make(at: dates, family: family, size: context.displaySize)
         completion(Timeline(entries: entries, policy: .atEnd))
         // 実機でメモリと作り直しの間隔を読むための記録（3-2c）。設定画面の「ウィジェットの記録」で見る。
-        ReloadRecorder.record(family: family, entries: entries)
+        // 大きさも残す。アプリは、それでホーム画面のラベルの有無を見分ける（透過背景。3-3）。
+        ReloadRecorder.record(family: family, size: context.displaySize, entries: entries)
     }
 }
 
@@ -77,13 +80,15 @@ enum HomeEntries {
             return [HomeEntry(date: now, moment: .sample(room: state.currentRoom, at: now), world: nil)]
         }
         let motion = WidgetMotion.current(for: state.widget)
+        let wallpaper = HomeWallpaper.load(for: family, settings: state.widget)
         let input = state.worldInput(character: character)
-        // 背景の写真は読まない（大きく、拡張のメモリを食う。D-20）。ウィジェットは図形の部屋で描く。
+        // 部屋の背景の写真は読まない（大きく、拡張のメモリを食う。D-20）。ウィジェットは図形の部屋で描く。
+        // 透過背景だけは、自分のスロットの切り抜きを 1 枚読む（全体のスクショは読まない）。
         let world = SceneWorld.bundled(character: character, room: input.room)
         let layout = WidgetStage.stage(for: family).layout(
             size: size, room: world.room, geometry: world.spriteGeometry, characterScale: character.scale)
         return WidgetMoments.make(at: dates, input: input, settings: state.settings, layout: layout)
-            .map { HomeEntry(date: $0.date, moment: $0, world: world, motion: motion) }
+            .map { HomeEntry(date: $0.date, moment: $0, world: world, motion: motion, wallpaper: wallpaper) }
     }
 
     /// 見本（ギャラリーと、読み込み中の仮の絵）。同梱の先頭のキャラが、同梱の部屋に立つ。
@@ -103,7 +108,7 @@ struct HomeWidgetView: View {
     var body: some View {
         if let world = entry.world {
             WidgetScene(family: WidgetSlot.Family(family), moment: entry.moment, world: world,
-                        motion: entry.motion)
+                        motion: entry.motion, wallpaper: entry.wallpaper)
         } else {
             Text("キャラクターのデータを読めませんでした")
                 .font(.footnote)
@@ -111,6 +116,21 @@ struct HomeWidgetView: View {
                 .padding()
                 .containerBackground(Palette.background, for: .widget)
         }
+    }
+}
+
+/// 透過背景の切り抜きを読む（3-3）。
+enum HomeWallpaper {
+
+    /// その大きさのスロットの切り抜きを、外観ごとに読む。**タイムラインごとに 1 度だけ読み、
+    /// 全エントリで同じ画像を使う**（エントリごとに読むと、同じ壁紙を何十枚も展開しかねない）。
+    /// 読めなければ nil で、部屋の絵に戻る（拡張を落とさない）。
+    static func load(for family: WidgetSlot.Family, settings: WidgetSettings) -> WidgetWallpaper? {
+        guard let crops = settings.slot(for: family)?.crops else { return nil }
+        let store = ImageStore.shared
+        let wallpaper = WidgetWallpaper(light: crops.light.flatMap(store.load),
+                                        dark: crops.dark.flatMap(store.load))
+        return wallpaper.light == nil && wallpaper.dark == nil ? nil : wallpaper
     }
 }
 

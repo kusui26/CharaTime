@@ -87,6 +87,17 @@ final class HomeScreenRobot: XCTestCase {
         report()
     }
 
+    /// 編集モードで最後のページの先にある空のページへめくり、**そのまま終わる**（透過背景の材料。3-3）。
+    ///
+    /// 利用者が壁紙のスクショを撮るのと同じ手順。スクリプトが撮ったあと、`testSettle` で戻す。
+    func testEmptyPage() {
+        continueAfterFailure = false
+        home.goToRobotPage()
+        home.enterEditMode()
+        home.goToEmptyPage()
+        report()
+    }
+
     /// ホーム画面の外観（編集 → カスタマイズ）を切り替える。
     ///
     /// `CT_ROBOT_STYLE` に「デフォルト」「ダーク」「クリア」「色合い調整」（＝着色）。クリアと着色では、
