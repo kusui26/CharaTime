@@ -11,9 +11,7 @@ enum MaskFontRegistry {
     ///
     /// 登録されていない書体を `Font.custom` で指すと、黙ってシステムの字に落ちる。マスクが数字の形になり、
     /// 絵が数字の形の穴から覗いてしまう（スパイクの教訓。docs/260912_spike.md §5 ②）。
-    ///
-    /// `CTRender.` と書くのは、アプリのターゲットにスパイクの同じ名前の型（`MaskFont`）が入っているため。
-    static let isComplete: Bool = CTRender.MaskFont.familyNames.allSatisfy {
+    static let isComplete: Bool = MaskFont.familyNames.allSatisfy {
         UIFont(name: $0, size: probeSize) != nil
     }
 

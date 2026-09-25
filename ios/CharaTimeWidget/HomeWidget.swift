@@ -56,9 +56,11 @@ struct HomeProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<HomeEntry>) -> Void) {
         // 暦は端末のもの。日課エンジンへの入力（`AppState.worldInput`）と同じ暦で升目を切る。
         let dates = WidgetTimeline.entryDates(from: Date(), calendar: .current)
-        let entries = HomeEntries.make(at: dates, family: WidgetSlot.Family(context.family),
-                                       size: context.displaySize)
+        let family = WidgetSlot.Family(context.family)
+        let entries = HomeEntries.make(at: dates, family: family, size: context.displaySize)
         completion(Timeline(entries: entries, policy: .atEnd))
+        // 実機でメモリと作り直しの間隔を読むための記録（3-2c）。設定画面の「ウィジェットの記録」で見る。
+        ReloadRecorder.record(family: family, entries: entries)
     }
 }
 

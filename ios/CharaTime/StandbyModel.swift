@@ -128,7 +128,7 @@ final class StandbyModel {
     /// 状態を App Group に書く。ウィジェットは、ここで書いたものを読む。
     ///
     /// `reloadingWidgets` のときは、ホーム画面のウィジェットに作り直しを頼む（3-C ⑩）。前面の
-    /// アプリからの作り直しは予算に数えない。スパイクのウィジェットは頼まない（名前を指して頼む）。
+    /// アプリからの作り直しは予算に数えない。頼むのは本番のウィジェットの名前（kind）だけ。
     @discardableResult
     private func persist(reloadingWidgets: Bool) -> Bool {
         do {
@@ -147,6 +147,13 @@ final class StandbyModel {
     func setPseudoAnimation(_ isOn: Bool) {
         state.widget.pseudoAnimation = isOn
         persist(reloadingWidgets: true)
+    }
+
+    /// ウィジェット拡張が残した記録（3-2c）。書くのは拡張なので、設定画面を開くたびに読み直す。
+    private(set) var widgetRecord = WidgetDiagnostics()
+
+    func reloadWidgetRecord() {
+        widgetRecord = DiagnosticsStore.shared.load()
     }
 
     /// ウィジェットと同じ規則の「動かしてよいか」。下見の画面と設定画面が使う。

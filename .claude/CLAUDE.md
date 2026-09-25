@@ -204,7 +204,7 @@ Read すれば、自分が書いた UI を目で確認して直せます。
 
 ```bash
 scripts/home-screen.sh build                         # アプリを入れ直す（ウィジェットを直したら毎回）
-scripts/home-screen.sh place --clear "スパイク F 4 本@小"   # 置く（名前の一覧は gallery）
+scripts/home-screen.sh place --clear "CharaTime@大|CharaTime@中"   # 置く（名前の一覧は gallery）
 scripts/home-screen.sh shot                          # ウィジェットのページを撮る → .shots/home/latest.png
 scripts/home-screen.sh record --resume 5             # 行って戻るを挟んで収録し、点滅を数える
 scripts/home-screen.sh count <実機の動画> --slots small6   # 実機の画面収録も同じ物差しで数える
@@ -219,7 +219,8 @@ scripts/home-screen.sh count <実機の動画> --slots small6   # 実機の画�
 ウィジェットのプレビュー（`#Preview(as:)`）、ホーム画面のウィジェットの見た目と点滅（上の道具）。
 
 **実機でしか確認できないこと**: ウィジェットの実際の更新間隔、透過ウィジェットのずれ、
-StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 のスパイク）。
+StandBy、常時表示、電池と発熱、拡張のメモリ（設定画面の「ウィジェットの記録」で読む。3-2c）、
+疑似アニメが放置や再起動のあとも続くか（プラン 3-E の表）。
 
 ---
 
@@ -237,8 +238,7 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 
 疑似アニメの入／切（`state.json` の `widget.pseudoAnimation`）は、選んでいなければ既定の切です。
 設定画面で入にできます。既定を入にするかは、入と切で丸 1 日ずつ電池を測ってから決めます（Q-15）。
-スパイク E の残りのマトリクス（低電力・着色・常時表示など）と電池は、どの状態で静止画に落とすかを
-決める材料として測ります。
+低電力・着色・常時表示などでどう落ちるかは、本番のウィジェットで測ります（3-0a を 3-E の表に置き換えた）。
 
 次の山は **Phase 3**（ホーム画面ウィジェット）。**Phase 2**（キャラ 5 体・部屋・アイテム）より先に行います（D-16）。
 作業の順番・設計・確かめ方は、プラン §9 の Phase 3（3-A〜3-I）にあります。
@@ -246,9 +246,9 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 タイマーの本数は、1 つのウィジェットに**原則 4 本・最大 8 本**で確定しました（D-17）。実機では 14 本でも、
 ホーム画面に戻った直後に止まりません（止まるのはコントロールセンターを閉じた直後だけで、本数に依らない）。
 実機の画面収録やスクリーンショットは `iPhone/` に置かれます。**git に入れない**（`.gitignore` 済み。壁紙に人物が写る）。
-スパイクのターゲット（`ios/CharaTimeSpikeWidget/`、`tools/spike/`）は、E・F の作り（マスク書体、
-右から k 字目の切り出し `GlyphWindow`、0 時起点 `MidnightClock`）を本番へ移し終えました（3-2b）。
-3-0a（E の残りのマトリクスと電池）を測り終えたら消します。
+スパイクのターゲットは、E・F の作り（マスク書体、右から k 字目の切り出し `GlyphWindow`、
+0 時起点 `MidnightClock`）を本番へ移し終えたので、消しました（3-2c。記録は `docs/260912_spike.md` に残る）。
+Developer Program に登録済みで、実機の署名の期限は 1 年です（3-6 済み）。
 **3-1（CTCore と CTStore）も済み**: エントリの時刻（`WidgetTimeline`）、動かし方（`AmbientCue`・
 `BlinkRhythm`・`TimerWindow`）、`state.json` の `context` と `widget`。
 **3-2（静止のウィジェット）も済み**: 本番の `HomeWidget`（kind `CharaTimeHome`、小・中・大）が骨組みに代わった。
@@ -259,7 +259,10 @@ StandBy、常時表示、電池と発熱、疑似アニメの成立（Phase 0 �
 時報の 30 秒・光の粒が、拡張を動かさずに動く（`MaskedTimer.swift`・`AmbientViews.swift`）。
 書体がそろわない・設定が切・梯子が 1fps に届かないときは、止めた 1 枚に落ちる。
 Reduce Motion（視差効果を減らす）でも、設定が入なら 1fps の小さな動き（まばたき・寝息・z）は続ける
-（D-19 を 2026-09-25 に改めた。横すべりと光の粒は止める）。次は 3-3（透過背景）。
+（D-19 を 2026-09-25 に改めた。横すべりと光の粒は止める）。
+**3-2c（実機の測定の準備）も済み**: 拡張が作り直すたびにメモリと時刻を自分で測り（`ReloadRecorder`）、
+設定画面の「ウィジェットの記録」に出す。メモリは大きさごとでなく拡張 1 つぶんの値で、最大はタイムラインを
+渡したあとの絵を作るあいだに出る。次は 3-5（StandBy）→ 3-3（透過背景）→ 3-4（置き方のガイド）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
