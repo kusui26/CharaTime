@@ -121,6 +121,9 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
 - **シミュレータのホーム画面は、15 分ほど触らずにおくと休み、まばたき（0.25 秒の窓）が出なくなる。**
   収録の前に `scripts/home-screen.sh shot` で 1 回触る。収録を始めた直後の 5 秒ほどは描き直しが走るので、
   頭だけ見て「動いている」と判断しない（3-2b）。
+- **写真アプリから画像を受け取るときは `preferredItemEncoding: .current`。** 既定では形式を変えられることがあり
+  （JPEG など）、画素が変わる。透過背景の壁紙のスクショは `ImageStore.decodeExact` で縮めずに読む
+  （`decodeScaled` は縮小の仕組みを通り、画素と色がずれうる。3-3）。
 - **実行中のスクリプトを書き換えない。** bash は実行しながら読むので、構文エラーになる。
 - **`#expect` の中で `CGFloat` と `Double` を直接比べない。** 同じ値でも等しくならない。
   `Double(...)` にそろえてから比べる（3-2 で、差が 0 なのに落ちた）。
@@ -193,6 +196,7 @@ scripts/ios-loop.sh --shot-only  # スクショだけ
 scripts/ios-loop.sh --test-only  # scripts/check.sh と同じ（パッケージだけ）
 scripts/ios-loop.sh --screen widgets --time 21:05   # ウィジェットの下見（大・中・小）を撮る
 scripts/ios-loop.sh --screen standBy --time 23:00   # StandBy の下見（昼と、夜の赤のまね）を撮る
+scripts/ios-loop.sh --screen transparent            # 設定の「透過背景」を開いて撮る（alignment で「位置を寄せる」）
 ```
 
 **コミット前には必ず `scripts/check.sh` を通す。** 3 つの品質ゲート（lint・
@@ -207,6 +211,7 @@ Read すれば、自分が書いた UI を目で確認して直せます。
 scripts/home-screen.sh build                         # アプリを入れ直す（ウィジェットを直したら毎回）
 scripts/home-screen.sh place --clear "CharaTime@大|CharaTime@中"   # 置く（名前の一覧は gallery）
 scripts/home-screen.sh shot                          # ウィジェットのページを撮る → .shots/home/latest.png
+scripts/home-screen.sh wallpaper wallpaper-light     # 編集モードの空のページ（壁紙だけ）を撮る（透過背景の材料）
 scripts/home-screen.sh record --resume 5             # 行って戻るを挟んで収録し、点滅を数える
 scripts/home-screen.sh count <実機の動画> --slots small6   # 実機の画面収録も同じ物差しで数える
 ```
@@ -268,7 +273,12 @@ Reduce Motion（視差効果を減らす）でも、設定が入なら 1fps の�
 **3-5（StandBy）も済み**: 見え方（`WidgetDisplay`）を判定し、背景が外れた黒の上と夜の赤では、
 字を淡く、床の帯の端をぼかし、夜の吹き出しを黒い地に白い字にする。実機の StandBy で昼も夜の赤も
 見分けられた（小は 2.2 倍に拡大され、夜は明るさがそのまま赤の濃さになる）。下見は `--screen standBy`。
-CarPlay には勧めない（D-30）。次は 3-3（透過背景）→ 3-4（置き方のガイド）。
+CarPlay には勧めない（D-30）。
+**3-3（透過背景）も済み**: 設定 →「透過背景」で、編集モードの空のページのスクショ（ライト・ダーク）を
+取り込むと、大と中の枠（`SlotGeometry`。iOS 26 の実測を画素で）で切り抜き（`WallpaperStore`）、ウィジェットが部屋の
+代わりに敷く。ずれはシミュレータでも実機でも 0 画素。iOS 26 はウィジェットの縁に細いガラスの縁取りを必ず描く（消せない）。
+シミュレータでは `-CTImportWallpaper <ライト> <ダーク>`（App Group の images に置いたスクショ）で取り込める。
+次は 3-4（置き方のガイド）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
