@@ -47,6 +47,10 @@ public struct SettingsSummaryView: View {
                     row("疑似アニメ", pseudoAnimationLabel)
                 }
                 if let widgetCapability { row("いまの動き", widgetCapability.label) }
+                // 進む先の画面はアプリが用意する（`SettingsRoute`）。
+                NavigationLink(value: SettingsRoute.transparentBackground) {
+                    row("透過背景", TransparentStatus.label(widget))
+                }
             } header: {
                 Text("ウィジェット")
             } footer: {

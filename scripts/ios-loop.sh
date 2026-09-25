@@ -51,7 +51,7 @@ device_name="iPhone 17 Pro"
 # 確認のために時刻をずらす（プラン §9 Phase 1 の 1-5）。空なら実時刻。
 fixed_time=""
 time_speed=""
-# 最初に開く画面（-CTScreen。widgets・standBy・settings・dayPlan など）。空なら待受モード。
+# 最初に開く画面（-CTScreen。widgets・standBy・settings・transparent・dayPlan など）。空なら待受モード。
 start_screen=""
 skip_test=false
 shot_only=false

@@ -181,6 +181,32 @@ struct HomeScreen {
         require(springboard.buttons[SpringBoardText.edit], "編集モードに入れません")
     }
 
+    /// 編集モードのまま、最後のページまでめくる。その先に空のページがあれば、そこで止まる（3-3）。
+    ///
+    /// アイコンもウィジェットも無いページ（Dock より上に何も無い）でなければ、止めて画面を書き出す。
+    func goToEmptyPage() {
+        // 最後のページで止める。その先へめくると、アプリライブラリに入ってしまう。
+        for _ in 0..<RobotTiming.maxPages {
+            guard let position = pagePosition(), position.current < position.total, nextPage() else { break }
+        }
+        if !pageAboveDockIsEmpty() {
+            fail("編集モードで最後までめくっても、空のページがありません")
+        }
+    }
+
+    /// いま見えているページの、Dock より上にアイコンもウィジェットも無いか。
+    private func pageAboveDockIsEmpty() -> Bool {
+        let screen = screenFrame
+        let dockTop = screen.height * Self.dockTopRatio
+        return springboard.icons.allElementsBoundByIndex.allSatisfy { icon in
+            let frame = icon.frame
+            return frame.isEmpty || !screen.intersects(frame) || frame.midY > dockTop
+        }
+    }
+
+    /// Dock の上端（画面の高さに対する比）。402×874pt で Dock のアイコンは y = 770pt あたりから下にある。
+    private static let dockTopRatio: CGFloat = 0.85
+
     /// 「カスタマイズ」で外観と、アプリアイコンの大きさを変える。どちらも nil なら変えない。
     func customize(style: String?, largeIcons: Bool?) {
         enterEditMode()

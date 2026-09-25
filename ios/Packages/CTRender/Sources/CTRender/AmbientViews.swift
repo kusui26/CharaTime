@@ -133,6 +133,8 @@ struct AmbientSleepMarks: View {
     let origin: CGPoint
     let height: Double
     let ink: Color
+    /// 字に影を付けるか（透過背景の壁紙の上。`InkShadow`）。
+    var shadowsInk = false
 
     /// 窓のマスクの一辺（字の大きさに対する比）。字がすっぽり入る大きさ。
     private static let cellRatio: Double = 1.6
@@ -145,6 +147,7 @@ struct AmbientSleepMarks: View {
             Text(SleepMarkLayout.text)
                 .font(.system(size: spot.fontSize, weight: .bold, design: .rounded))
                 .foregroundStyle(ink.opacity(spot.opacity))
+                .shadow(color: shadowsInk ? InkShadow.color : .clear, radius: InkShadow.radiusPoints)
                 .frame(width: cell, height: cell)
                 .shown(during: windows[index].map { AnchoredWindow(window: $0, anchor: anchor) }, cell: cell)
                 .position(spot.center)

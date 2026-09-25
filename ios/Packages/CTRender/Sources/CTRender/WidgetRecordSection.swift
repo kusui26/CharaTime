@@ -100,11 +100,7 @@ enum WidgetRecordFormat {
     }
 
     static func familyName(_ family: WidgetSlot.Family) -> String {
-        switch family {
-        case .small:  "小"
-        case .medium: "中"
-        case .large:  "大"
-        }
+        family.displayName
     }
 
     /// 作ったタイムライン: 「73 件・動く」。

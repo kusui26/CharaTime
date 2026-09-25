@@ -9,7 +9,8 @@ import CTStore
 /// アニメで中身だけが動き、背景と食い違う瞬間ができるため。背景を外す描き方（着色・クリア・
 /// StandBy）では部屋を描かず、キャラとアイテムだけにする（OS が背景を敷き直す）。
 /// どう見せられているか（`WidgetDisplay`）は WidgetKit の環境から読む。StandBy の黒の上と夜の赤では、
-/// 字を淡い色にし、吹き出しの塗り方を替える（3-C ⑨）。
+/// 字を淡い色にし、吹き出しの塗り方を替える（3-C ⑨）。透過背景（3-C ⑦）を用意してあれば、
+/// ふつうのホーム画面では部屋の代わりに壁紙の切り抜きを敷き、アイテムとキャラをその上に置く。
 ///
 /// 描画の段（3-C ⑤）が 1fps 以上なら、止めた 1 枚の上で、まばたき・寝息・よろこぶを
 /// マスク書体のタイマーで出し入れする（疑似アニメ。3-C ④）。段が下がれば止めた 1 枚だけを描く。
@@ -23,19 +24,25 @@ public struct WidgetScene: View {
     public let motion: WidgetMotion
     /// 見え方の決め打ち。アプリ内の下見で StandBy をまねるときだけ渡す。nil なら WidgetKit の環境に従う。
     public let displayOverride: WidgetDisplay?
+    /// 透過背景の切り抜き（3-3）。nil なら部屋の絵を描く。
+    public let wallpaper: WidgetWallpaper?
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.showsWidgetContainerBackground) private var showsBackground
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isLuminanceReduced) private var luminanceReduced
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
 
     public init(family: WidgetSlot.Family, moment: WidgetMoment, world: SceneWorld,
-                motion: WidgetMotion = .still, display: WidgetDisplay? = nil) {
+                motion: WidgetMotion = .still, display: WidgetDisplay? = nil,
+                wallpaper: WidgetWallpaper? = nil) {
         self.family = family
         self.moment = moment
         self.world = world
         self.motion = motion
         self.displayOverride = display
+        self.wallpaper = wallpaper
     }
 
     /// エントリ切替でキャラを滑らせる長さ（秒）。OS がエントリ切替に許すアニメは最大 2 秒で、
@@ -44,29 +51,44 @@ public struct WidgetScene: View {
 
     public var body: some View {
         let display = self.display
-        let palette = display.palette(.forNight(moment.isNight))
+        let basePalette = display.palette(.forNight(moment.isNight))
         GeometryReader { geometry in
             let stage = WidgetStage.stage(for: family)
             let layout = stage.layout(size: geometry.size, room: world.room,
                                       geometry: world.spriteGeometry,
                                       characterScale: world.character.scale)
+            let background = WidgetBackground.choose(display: display, wallpaper: wallpaper,
+                                                     scheme: colorScheme, size: geometry.size,
+                                                     scale: displayScale)
+            let palette = background.palette(basePalette)
             let ambient = moment.ambientLook(at: display.capability(motion: motion))
             ZStack {
-                if display.drawsRoom {
-                    RoomView(layout: layout, palette: palette, showsWindow: stage.showsWindow,
-                             showsRug: true, isNight: moment.isNight)
-                } else {
-                    FloorHint(layout: layout, fadesEdges: display.hasDarkBackdrop)
-                }
+                backdrop(background, layout: layout, stage: stage, palette: palette)
                 SceneLayers(state: moment.state, world: world, layout: layout, palette: palette,
-                            look: .widget(identity: moment.leg, tone: display.tone, ambient: ambient),
+                            look: .widget(identity: moment.leg, tone: display.tone, ambient: ambient,
+                                          overWallpaper: background.isWallpaper),
                             seconds: moment.date.timeIntervalSinceReferenceDate)
             }
             .animation(slide(display), value: moment.date)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenSummary)
-        .containerBackground(palette.wall, for: .widget)
+        .containerBackground(basePalette.wall, for: .widget)
+    }
+
+    /// 背景（部屋・壁紙の切り抜き・床の手がかり）。
+    @ViewBuilder
+    private func backdrop(_ background: WidgetBackground, layout: SceneLayout, stage: WidgetStage,
+                          palette: RoomPalette) -> some View {
+        switch background {
+        case .room:
+            RoomView(layout: layout, palette: palette, showsWindow: stage.showsWindow,
+                     showsRug: true, isNight: moment.isNight)
+        case .wallpaper(let image):
+            WallpaperBackdrop(image: image, scale: displayScale)
+        case .floorHint(let fadesEdges):
+            FloorHint(layout: layout, fadesEdges: fadesEdges)
+        }
     }
 
     /// いまの見え方。決め打ちが無ければ、WidgetKit の環境から読む。

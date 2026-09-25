@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import CoreGraphics
 @testable import CTStore
 
 /// ウィジェット拡張が残す記録（プラン §9 Phase 3 の 3-2c）。実機でメモリと作り直しの間隔を読むため。
@@ -73,6 +74,28 @@ struct WidgetDiagnosticsTests {
         #expect(diagnostics.peakBytes(now: Self.nine) == 16_000_000)
         #expect(diagnostics.peakBytes(now: Self.nine.addingTimeInterval(2 * 86_400)) == nil)
         #expect(WidgetDiagnostics().peakBytes(now: Self.nine) == nil)
+    }
+
+    /// アプリは、ウィジェットが知らせた大きさで、ラベルの有無（透過背景の枠の表）を見分ける（3-3）。
+    @Test("大きさごとに、最後に知らせた大きさを取り出せる。大きさの無い古い記録は飛ばす")
+    func latestDisplaySize() {
+        let size = CGSize(width: 349.67, height: 365)
+        var sized = Self.reload(1, .large)
+        sized.displaySize = size
+        let diagnostics = [sized, Self.reload(2, .large), Self.reload(3, .medium)]
+            .reduce(WidgetDiagnostics()) { $0.recording($1) }
+        #expect(diagnostics.latestDisplaySize(of: .large) == size)
+        #expect(diagnostics.latestDisplaySize(of: .medium) == nil)
+    }
+
+    /// 3-3 より前の拡張が書いた記録（大きさが無い）も読める。
+    @Test("大きさの無い記録も読める")
+    func decodesRecordsWithoutSize() throws {
+        let json = #"{"reloads":[{"date":0,"family":"large","entryCount":73,"footprintBytes":1,"#
+            + #""peakBytes":2,"pseudoAnimation":true}]}"#
+        let decoded = try JSONDecoder().decode(WidgetDiagnostics.self, from: Data(json.utf8))
+        #expect(decoded.reloads.first?.displaySize == nil)
+        #expect(decoded.reloads.first?.entryCount == 73)
     }
 
     @Test("新しい順に、指定した件数だけ取り出せる")
