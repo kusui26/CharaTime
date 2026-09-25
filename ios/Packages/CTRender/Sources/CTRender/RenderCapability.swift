@@ -114,7 +114,7 @@ public extension RenderCapability {
     /// 面と端末の状態から、実際に使う段を決める（3-C ⑤ の表を上から順に）。
     ///
     /// 迷ったら下げる。上げてよいのは、確かめた OS で、設定が入で、単色（vibrant）で描いておらず、
-    /// 省電力でも Reduce Motion でも減光中でもないときだけ。着色・クリアは 1fps まで。
+    /// 省電力でも減光中でもないときだけ。着色・クリアと Reduce Motion では 1fps まで。
     static func resolve(_ context: RenderContext) -> RenderCapability {
         if let fixed = fixedCapability(for: context) { return fixed }
         return Swift.min(ceiling(for: context.system), throttle(for: context))
@@ -142,7 +142,6 @@ public extension RenderCapability {
     private static func throttle(for context: RenderContext) -> RenderCapability {
         // 単色（vibrant）は細かい動きが読めない。
         let heldDown = !context.pseudoAnimationEnabled
-            || context.reduceMotion
             || context.lowPowerMode
             || context.tone == .vibrant
         let byState: RenderCapability = heldDown ? .timelineTransition : .ambient4fps
@@ -152,10 +151,15 @@ public extension RenderCapability {
         // この描き方では色を失い、見え方も確かめていない。
         let byTone: RenderCapability = context.tone == .accented ? .ambient1fps : .ambient4fps
 
+        // Reduce Motion も 1fps まで（D-19。2026-09-25 に改めた）。減らしたいのは大きな動きなので、
+        // その場での小さな変化（まばたき・寝息・z）は続け、1 秒に 4 回のきらめきは止める。
+        // エントリ切替の横すべりは `WidgetScene` が止める。
+        let byMotion: RenderCapability = context.reduceMotion ? .ambient1fps : .ambient4fps
+
         // Live Activity は 4KB の制約があり、コマ数を増やしても載らない。
         let bySurface: RenderCapability = context.surface == .liveActivity
             ? .ambient1fps : .ambient4fps
 
-        return Swift.min(byState, byTone, bySurface)
+        return Swift.min(byState, byTone, byMotion, bySurface)
     }
 }

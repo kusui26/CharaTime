@@ -21,6 +21,14 @@ struct AmbientLook: Sendable, Equatable {
             return nil
         }
     }
+
+    /// 寝ている「z」の窓（z の番号 → 窓）。1 つ目（0 番）は出したままなので入っていない。
+    var sleepMarkWindows: [Int: TimerWindow] {
+        Dictionary(cue.overlays.compactMap { overlay -> (Int, TimerWindow)? in
+            if case .sleepMark(let index) = overlay.layer { return (index, overlay.window) }
+            return nil
+        }, uniquingKeysWith: { first, _ in first })
+    }
 }
 
 /// 疑似アニメで動くキャラ。土台のコマを描き、重ねるコマとまぶたを窓で出し入れする（D-17）。
@@ -57,7 +65,7 @@ struct AmbientCharacterView: View {
         switch layer {
         case .eyelid: character.eyelids[cue.pose]
         case .frame(let index): spriteName(frame: index)
-        case .clockBubble, .sparkle: nil
+        case .clockBubble, .sparkle, .sleepMark: nil
         }
     }
 
@@ -110,6 +118,38 @@ struct AmbientSparkles: View {
                 .shown(during: window, anchor: anchor, cell: frame.width)
                 .position(x: frame.midX, y: frame.midY)
         }
+    }
+}
+
+/// 寝ているときの「z」（2026-09-25）。待受モードで浮かんでいく道筋の 3 か所に置き、1 つ目は
+/// 出したまま、2 つ目・3 つ目を窓で出し入れする（5 秒ごとに z → zz → zzz）。
+///
+/// 窓が外されていれば（タイマーの上限）、その z は出したままにする。止めた 1 枚と同じ 3 つが見える。
+struct AmbientSleepMarks: View {
+
+    let windows: [Int: TimerWindow]
+    let anchor: Date
+    /// キャラの足元（画面の座標）。
+    let origin: CGPoint
+    let height: Double
+    let ink: Color
+
+    /// 窓のマスクの一辺（字の大きさに対する比）。字がすっぽり入る大きさ。
+    private static let cellRatio: Double = 1.6
+
+    var body: some View {
+        ForEach(0..<SleepMarkLayout.count, id: \.self) { index in
+            let spot = SleepMarkLayout.mark(phase: SleepMarkLayout.widgetPhase(index), origin: origin,
+                                            height: height)
+            let cell = spot.fontSize * Self.cellRatio
+            Text(SleepMarkLayout.text)
+                .font(.system(size: spot.fontSize, weight: .bold, design: .rounded))
+                .foregroundStyle(ink.opacity(spot.opacity))
+                .frame(width: cell, height: cell)
+                .shown(during: windows[index].map { AnchoredWindow(window: $0, anchor: anchor) }, cell: cell)
+                .position(spot.center)
+        }
+        .accessibilityHidden(true)
     }
 }
 

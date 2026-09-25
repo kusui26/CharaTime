@@ -65,7 +65,7 @@ struct RenderCapabilityTests {
             }
         }
         #expect(resolve { $0.pseudoAnimationEnabled = false } == .timelineTransition)
-        #expect(resolve { $0.reduceMotion = true } == .timelineTransition)
+        #expect(resolve { $0.reduceMotion = true } == .ambient1fps)
         #expect(resolve { $0.lowPowerMode = true } == .timelineTransition)
         #expect(resolve { $0.system = Self.unverified } == .timelineTransition)
         #expect(resolve { $0.luminanceReduced = true } == .staticOnly)
@@ -82,10 +82,25 @@ struct RenderCapabilityTests {
         }
     }
 
-    @Test("省電力と Reduce Motion では上げない")
-    func userPreferencesCapTheLadder() {
+    @Test("省電力では上げない")
+    func lowPowerStaysLow() {
         #expect(Self.free { $0.lowPowerMode = true } == .timelineTransition)
-        #expect(Self.free { $0.reduceMotion = true } == .timelineTransition)
+    }
+
+    /// D-19（2026-09-25 に改めた）: Reduce Motion が減らしたいのは大きな動き。その場での小さな変化
+    /// （まばたき・寝息・z）は 1 秒に 1 回まで続け、1 秒に 4 回のきらめきは止める。横すべりは
+    /// `WidgetScene` が止める。動かすのは、利用者がアプリで疑似アニメを入にしたときだけ。
+    @Test("Reduce Motion では 1fps まで。疑似アニメが切なら上げない")
+    func reduceMotionStopsAtOneFps() {
+        #expect(Self.free { $0.reduceMotion = true } == .ambient1fps)
+        #expect(Self.free {
+            $0.reduceMotion = true
+            $0.pseudoAnimationEnabled = false
+        } == .timelineTransition)
+        #expect(Self.free {
+            $0.reduceMotion = true
+            $0.tone = .accented
+        } == .ambient1fps)
     }
 
     @Test("ロック画面は脱色表示なので常に切り替えのみ")
@@ -114,8 +129,8 @@ struct RenderCapabilityTests {
         #expect(seen.contains(.ambient4fps))
     }
 
-    /// Live Activity は 4KB の制約で最大 1fps だが、そこに Reduce Motion が重なれば
-    /// さらに下がる。片方だけを見て答えを返すと、Reduce Motion を入れているのに動いてしまう。
+    /// Live Activity は 4KB の制約で最大 1fps。そこに省電力や設定の切が重なれば、さらに下がる。
+    /// 片方だけを見て答えを返すと、省電力なのに動いてしまう。Reduce Motion は 1fps までなので、そのまま。
     @Test("Live Activity の頭打ちと端末の状態の頭打ちが重なる")
     func liveActivityStacksWithDeviceLimits() {
         func resolve(_ change: (inout RenderContext) -> Void) -> RenderCapability {
@@ -125,7 +140,7 @@ struct RenderCapabilityTests {
             }
         }
         #expect(resolve { _ in } == .ambient1fps)
-        #expect(resolve { $0.reduceMotion = true } == .timelineTransition)
+        #expect(resolve { $0.reduceMotion = true } == .ambient1fps)
         #expect(resolve { $0.lowPowerMode = true } == .timelineTransition)
         #expect(resolve { $0.pseudoAnimationEnabled = false } == .timelineTransition)
         #expect(resolve { $0.system = Self.unverified } == .timelineTransition)

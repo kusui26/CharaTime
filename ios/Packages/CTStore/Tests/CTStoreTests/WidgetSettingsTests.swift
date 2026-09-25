@@ -35,6 +35,13 @@ struct WidgetSettingsTests {
         #expect(!WidgetSettings(pseudoAnimation: false).usesPseudoAnimation)
     }
 
+    /// Reduce Motion の人の疑似アニメは、自分で入にしたときだけ動く（D-19）。既定を入にするときは、
+    /// その人たちの既定を分けてから変える（Q-15）。変えたことに、このテストで気づけるようにしておく。
+    @Test("疑似アニメの既定は切（入にするなら、先に D-19 の前提を見直す）")
+    func defaultStaysOffUntilTheBatteryIsMeasured() {
+        #expect(!WidgetSettings.defaultPseudoAnimation)
+    }
+
     /// nil を false として書くと、既定を入にしたとき（3-2b）に届かなくなる。
     @Test("選んでいないことは、JSON を往復しても「選んでいない」のまま")
     func unchosenSurvivesRoundTrip() throws {

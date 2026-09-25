@@ -21,13 +21,14 @@ struct EffectsView: View {
     /// 動かすのは疑似アニメのタイマーの役目（3-2b の光の粒）。「z」や音符は止まっていても
     /// 寝ている・おどっていると読めるので、ウィジェットでも描く。
     var showsSparkles: Bool = true
+    /// 寝ているときの「z」を描くか。ウィジェットの疑似アニメでは、窓で出し入れする別の部品
+    /// （`AmbientSleepMarks`）が描くので、ここでは描かない。
+    var showsSleepMarks: Bool = true
 
     /// 光点の数と、1 周にかける秒数。
     private static let sparkleCount = 9
     private static let sparkleTurnSeconds: Double = 14
     private static let sparkleRadiusRatio: Double = 3.4
-    /// 「z」が浮かんでいく周期。
-    private static let sleepDriftSeconds: Double = 3.2
     /// 音符が浮かんでいく周期。
     private static let noteDriftSeconds: Double = 2.4
 
@@ -41,7 +42,7 @@ struct EffectsView: View {
                 if showsSparkles { drawSparkles(&context, size: size) }
                 drawNotes(&context)
             }
-            if isAsleep { drawSleepMarks(&context) }
+            if isAsleep && showsSleepMarks { drawSleepMarks(&context) }
         }
         .allowsHitTesting(false)
     }
@@ -99,18 +100,17 @@ struct EffectsView: View {
         context.fill(path, with: .color(palette.glow.opacity(0.9)))
     }
 
-    /// 眠っているときの「z」。3 つが順に浮かんで消える。
+    /// 眠っているときの「z」。3 つが順に浮かんで消える（道筋は `SleepMarkLayout`）。
     private func drawSleepMarks(_ context: inout GraphicsContext) {
         let height = layout.characterHeight(at: state.position, characterScale: 1)
         let origin = layout.point(state.position)
-        for index in 0..<3 {
-            let phase = (seconds / Self.sleepDriftSeconds + Double(index) / 3)
+        for index in 0..<SleepMarkLayout.count {
+            let phase = (seconds / SleepMarkLayout.driftSeconds + SleepMarkLayout.widgetPhase(index))
                 .truncatingRemainder(dividingBy: 1)
-            let mark = FloatingMark(text: "z", size: height * (0.14 + 0.05 * phase),
-                                    color: palette.clockInk.opacity((1 - phase) * 0.8))
-            draw(&context, mark,
-                 at: CGPoint(x: origin.x + height * (0.22 + 0.20 * phase),
-                             y: origin.y - height * (0.40 + 0.42 * phase)))
+            let spot = SleepMarkLayout.mark(phase: phase, origin: origin, height: height)
+            draw(&context, FloatingMark(text: SleepMarkLayout.text, size: spot.fontSize,
+                                        color: palette.clockInk.opacity(spot.opacity)),
+                 at: spot.center)
         }
     }
 
@@ -147,4 +147,48 @@ private struct FloatingMark {
     let text: String
     let size: Double
     let color: Color
+}
+
+/// 眠っているときの「z」の道筋と見た目。待受モード（Canvas で浮かべていく）とウィジェット
+/// （道筋の 3 か所に置いて、窓で出し入れする）が同じ道筋を使う。
+///
+/// **View の外に置く**（`SparkleLayout` と同じ。View の静的な値は `@MainActor` に縛られる）。
+enum SleepMarkLayout {
+
+    static let text = "z"
+    /// 「z」の数。
+    static let count = 3
+    /// 待受モードで、1 つの「z」が浮かんで消えるまでの秒数。
+    static let driftSeconds: Double = 3.2
+
+    /// 出たところ（キャラの足元から見た位置。背の高さに対する比。右へ・上へ）。
+    private static let startRightRatio = 0.22
+    private static let startUpRatio = 0.40
+    /// 消えるまでに進む距離（背の高さに対する比）。右上へ浮かんでいく。
+    private static let driftRightRatio = 0.20
+    private static let driftUpRatio = 0.42
+    /// 字の大きさ（背の高さに対する比）。浮かぶにつれて少し大きくなる。
+    private static let startSizeRatio = 0.14
+    private static let growSizeRatio = 0.05
+    /// 出たときの濃さ。浮かぶにつれて薄くなり、消える。
+    private static let startOpacity = 0.8
+
+    /// 道筋の上の 1 か所の「z」。
+    struct Spot: Equatable {
+        let center: CGPoint
+        let fontSize: Double
+        let opacity: Double
+    }
+
+    /// `phase`（0 = 出たところ、1 = 消えるところ）の「z」。
+    static func mark(phase: Double, origin: CGPoint, height: Double) -> Spot {
+        Spot(center: CGPoint(x: origin.x + height * (startRightRatio + driftRightRatio * phase),
+                             y: origin.y - height * (startUpRatio + driftUpRatio * phase)),
+             fontSize: height * (startSizeRatio + growSizeRatio * phase),
+             opacity: (1 - phase) * startOpacity)
+    }
+
+    /// `index` 番目の「z」を置く道筋の位置（0・1/3・2/3）。待受モードで 3 つが等間隔に
+    /// 浮かんでいる瞬間と同じ並びで、ウィジェットはこの 3 か所に置く。
+    static func widgetPhase(_ index: Int) -> Double { Double(index) / Double(count) }
 }

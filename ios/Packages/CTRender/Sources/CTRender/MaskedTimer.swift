@@ -109,6 +109,13 @@ struct WindowMask: View {
     }
 }
 
+/// 窓と、そのタイマーの起点。出し入れする部品（吹き出し・寝ている z）に渡す。
+struct AnchoredWindow: Sendable, Equatable {
+    let window: TimerWindow
+    /// タイマーの起点。エントリの日付の 0 時（D-18）。
+    let anchor: Date
+}
+
 extension View {
 
     /// 窓が開いているあいだだけ見せる（3-C ④）。
@@ -117,5 +124,15 @@ extension View {
     /// 窓は書体の少ない形（`TimerWindow.canonical`）に回してから描く（書体は一族の 7 本だけ）。
     func shown(during window: TimerWindow, anchor: Date, cell: Double) -> some View {
         mask { WindowMask(window: window.canonical, anchor: anchor, cell: cell) }
+    }
+
+    /// 窓があれば開いているあいだだけ見せ、無ければ出したままにする。
+    @ViewBuilder
+    func shown(during window: AnchoredWindow?, cell: Double) -> some View {
+        if let window {
+            shown(during: window.window, anchor: window.anchor, cell: cell)
+        } else {
+            self
+        }
     }
 }
