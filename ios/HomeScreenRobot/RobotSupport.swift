@@ -1,6 +1,7 @@
 import XCTest
 
 /// ホーム画面（SpringBoard）に出る表示。**iOS の版や言語が変わったら、ここを直す。**
+/// アプリの置き方のガイド（`PlacementGuideScreen` の `GuideStep`）も同じ表示を書いているので、一緒に直す。
 ///
 /// シミュレータ（iPhone 17 Pro / iOS 26.5、日本語）で実際に出た表示を写した（2026-09-23）。
 /// 操作が「見つからない」で止まったら、`scripts/home-screen.sh dump` で今の表示を書き出して見比べる。

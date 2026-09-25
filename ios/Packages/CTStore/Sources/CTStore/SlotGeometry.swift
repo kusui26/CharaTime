@@ -56,11 +56,11 @@ public struct SlotGeometry: Sendable, Equatable {
     /// 表のある画面。
     static let known: [SlotGeometry] = [iPhone402x874]
 
-    /// ページの型「大（上）＋中（下）」のスロット（Q-14）。大は 1〜2 段目、中は 3 段目。
-    public static let largeOverMedium: [WidgetSlot] = [
-        WidgetSlot(family: .large, column: 0, row: 0),
-        WidgetSlot(family: .medium, column: 0, row: 2),
-    ]
+    /// 透過背景を敷くスロット: ページのいちばん上の大（D-31。基本の置き方は、大を 1 つ、ページのいちばん上に）。
+    ///
+    /// 大を 1 ページに 1 つだけ置くので、大は自分の大きさでこのスロットだと分かる。中と小は置き場所が
+    /// 決まらない（ページのどこにでも置ける）ので切り抜かない。ずれた壁紙を敷くより、部屋の絵のほうがよい。
+    public static let largeAtTop = WidgetSlot(family: .large, column: 0, row: 0)
 
     /// 縦向きのスクショの画素の数から、その画面の表を選ぶ。表が無ければ nil。
     public static func screen(pixelWidth: Int, pixelHeight: Int) -> SlotGeometry? {
@@ -97,6 +97,37 @@ public struct SlotGeometry: Sendable, Equatable {
 
     private func grid(_ style: IconStyle) -> Grid {
         style == .labeled ? labeled : labelFree
+    }
+}
+
+// MARK: - ウィジェットの記録から読む
+
+public extension SlotGeometry {
+
+    /// ウィジェットの記録から読んだ、アプリ名のラベルの有無（透過背景の 3-3 と、置き方のガイドの 3-4）。
+    enum IconStyleReading: Sendable, Equatable {
+        /// 大も中も、まだ大きさを知らせていない（置いていない）。
+        case notYetPlaced
+        /// 大か中が知らせた大きさが、表のどれとも合わない（画面の表示を拡大しているときや、表の無い iPhone）。
+        /// 待っても分からないので、「まだ」とは分けて伝える。
+        case unknownSize
+        case detected(IconStyle)
+
+        /// 見分けたラベルの有無。見分けられなければ nil。
+        public var style: IconStyle? {
+            guard case .detected(let style) = self else { return nil }
+            return style
+        }
+    }
+
+    /// 大と中が最後に知らせた大きさ（`WidgetReload.displaySize`）から、ラベルの有無を読む。大を先に見る。
+    func iconStyleReading(from record: WidgetDiagnostics) -> IconStyleReading {
+        let measured = [WidgetSlot.Family.large, .medium].compactMap { family in
+            record.latestDisplaySize(of: family).map { (family, $0) }
+        }
+        guard !measured.isEmpty else { return .notYetPlaced }
+        let style = measured.lazy.compactMap { family, size in iconStyle(of: family, size: size) }.first
+        return style.map(IconStyleReading.detected) ?? .unknownSize
     }
 }
 

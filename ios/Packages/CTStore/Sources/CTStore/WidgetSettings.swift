@@ -62,10 +62,12 @@ public struct WidgetSettings: Codable, Sendable, Equatable {
         return settings
     }
 
-    /// その大きさのウィジェットが使うスロット（3-3）。ページの型は大（上）＋中（下）なので、
-    /// 大きさだけで決まる。同じ大きさのスロットが 2 つ以上あれば、先のほうを使う。
+    /// その大きさのウィジェットが使うスロット（3-3）。透過背景を敷くのは、ページのいちばん上の大だけ（D-31）。
+    /// 中と小は置き場所が決まらず、敷くと壁紙がずれうるので nil（部屋の絵を描く）。D-31 より前に作った
+    /// 中の切り抜きが残っていても使わない（次に切り抜き直すときに設定から外れる）。
     public func slot(for family: WidgetSlot.Family) -> SlotSetting? {
-        slots.first { $0.slot.family == family }
+        guard family == SlotGeometry.largeAtTop.family else { return nil }
+        return slots.first { $0.slot == SlotGeometry.largeAtTop }
     }
 
     /// 参照している画像の名前（壁紙と切り抜き）。片づけで残す名前に入る（`AppState.referencedImageNames`）。
@@ -183,7 +185,7 @@ public struct SlotSetting: Codable, Sendable, Equatable {
     }
 }
 
-/// ページの型（3-C ⑧。どれにするかは Q-14）。
+/// ページの型（3-C ⑧。ページの部屋の 3-8 で使う）。基本の置き方（大 1 つ。D-31）は、既定の単独に当たる。
 public enum PagePreset: String, Codable, Sendable, CaseIterable {
     /// 各ウィジェットが自分の部屋を持つ。既定。
     case standalone

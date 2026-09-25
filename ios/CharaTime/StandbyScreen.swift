@@ -27,16 +27,17 @@ struct StandbyScreen: View {
     private static let showsStandByPreview =
         ProcessInfo.processInfo.arguments.contains("standBy")
 
-    /// `-CTScreen transparent`・`alignment` で、設定の中の透過背景の画面を開いた状態で起動する（確認用。3-3）。
+    /// `-CTScreen transparent`・`alignment`・`guide` で、設定の中の画面を開いた状態で起動する（確認用。3-3・3-4）。
     private static let initialSettingsPath: [SettingsRoute] = {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("alignment") { return [.transparentBackground, .transparentAlignment] }
+        if arguments.contains("guide") { return [.placementGuide] }
         return arguments.contains("transparent") ? [.transparentBackground] : []
     }()
 
     /// 設定のシートの中で進んだ画面。
     @State private var settingsPath = initialSettingsPath
-    /// 設定のシートの高さ。透過背景を開いて起動するときは、全体が見える高さで開く。
+    /// 設定のシートの高さ。設定の中の画面（透過背景・置き方のガイド）を開いて起動するときは、全体が見える高さで開く。
     @State private var settingsDetent: PresentationDetent = initialSettingsPath.isEmpty ? .medium : .large
 
     var body: some View {
@@ -119,6 +120,7 @@ struct StandbyScreen: View {
             switch route {
             case .transparentBackground: TransparentBackgroundScreen(model: model)
             case .transparentAlignment: TransparentAlignmentScreen(model: model)
+            case .placementGuide: PlacementGuideScreen(model: model)
             }
         }
     }
