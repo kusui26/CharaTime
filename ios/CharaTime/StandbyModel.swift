@@ -64,6 +64,7 @@ final class StandbyModel {
 
     private func load() {
         state = (try? StateStore.shared.loadOrCreate()) ?? StateStore.shared.load().state
+        weekRun = WeekRunStore.shared.load()
         guard let chosen = state.currentCharacter(among: Catalog.charactersOrEmpty()) else {
             loadFailure = "characters.json に 1 体も入っていません"
             return
@@ -155,6 +156,11 @@ final class StandbyModel {
 
     /// ウィジェット拡張が残した記録（3-2c）。書くのは拡張なので、設定の画面を開くたびと、前面に戻るたびに読み直す。
     private(set) var widgetRecord = WidgetDiagnostics()
+
+    /// 1 週間の運用の記録表（3-7）。書くのも読むのもアプリだけ。
+    private(set) var weekRun = WeekRunRecord()
+    /// 記録表を書けなかった理由。書けたら nil。画面に出す（つけた記録を黙って失わない）。
+    private(set) var weekRunSaveFailure: String?
 
     func reloadWidgetRecord() {
         widgetRecord = DiagnosticsStore.shared.load()
@@ -325,6 +331,47 @@ extension StandbyModel {
             if let failure = await importWallpaper(data, as: appearance, style: style) {
                 loadFailure = failure
             }
+        }
+    }
+}
+
+// MARK: - 1 週間の運用（プラン §9 Phase 3 の 3-7）
+
+extension StandbyModel {
+
+    /// 始める。前の記録は消す（始め直すときも、これを使う）。
+    func startWeekRun(at date: Date) {
+        saveWeekRun(WeekRunRecord(startedAt: date))
+    }
+
+    /// 記録を消して、始める前に戻す。
+    func resetWeekRun() {
+        saveWeekRun(WeekRunRecord())
+    }
+
+    /// その日の記録を書き換えて保存する。
+    func updateWeekRunDay(_ number: Int, _ change: (inout WeekRunDay) -> Void) {
+        saveWeekRun(weekRun.updatingDay(number, change))
+    }
+
+    /// 一度だけ確かめることの結果を書き換えて保存する。
+    func updateWeekRunCheck(_ id: String, _ change: (inout WeekRunCheck) -> Void) {
+        saveWeekRun(weekRun.updatingCheck(id, change))
+    }
+
+    /// 書き出す文章。記録は実時刻なので、時刻の早送り（`-CTTime`）はかけない。
+    func weekRunReport(now: Date) -> String {
+        WeekRunReport.markdown(record: weekRun, diagnostics: widgetRecord, now: now, calendar: input.calendar,
+                               system: .current)
+    }
+
+    private func saveWeekRun(_ record: WeekRunRecord) {
+        weekRun = record
+        do {
+            try WeekRunStore.shared.save(record)
+            weekRunSaveFailure = nil
+        } catch {
+            weekRunSaveFailure = String(describing: error)
         }
     }
 }

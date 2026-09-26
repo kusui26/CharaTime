@@ -12,8 +12,10 @@ public struct WidgetDiagnostics: Codable, Sendable, Equatable {
     /// 作り直した記録。古い順。
     public private(set) var reloads: [WidgetReload]
 
-    /// 残す件数。大と中を置くと 1 日に 10 回ほど作り直すので、1 週間ぶん（3-7）より少し多く残す。
-    public static let capacity = 100
+    /// 残す件数。1 週間の運用（3-7）の終わりに、1 日目の記録まで残っているように決める。大と小（スタンバイ）を
+    /// 合わせて 1 日 10〜20 回の見込みなので、その 2 倍（1 日 40 回）でも 1 週間ぶん（280 件）が入る数にした。
+    /// 増やしすぎると、拡張が作り直すたびに読み書きする JSON が大きくなる（300 件で約 70 KB）。
+    public static let capacity = 300
 
     public init(reloads: [WidgetReload] = []) {
         self.reloads = Array(reloads.suffix(Self.capacity))
@@ -122,5 +124,94 @@ public extension WidgetDiagnostics {
     /// `now` までの 24 時間に入るか。ちょうど 24 時間前は入れない。
     private static func isWithinDay(_ reload: WidgetReload, now: Date) -> Bool {
         now.timeIntervalSince(reload.date) < dayWindowSeconds
+    }
+}
+
+// MARK: - 1 週間の運用の日ごとのまとめ（3-7）
+
+public extension WidgetDiagnostics {
+
+    /// 1 日ぶんのまとめ。1 週間の運用の記録表に、日ごとに並べる。
+    struct DaySummary: Sendable, Equatable {
+        /// その日の 0 時。
+        public let day: Date
+        /// 大きさごとの、その日に作り直した回数。
+        public let reloadCounts: [WidgetSlot.Family: Int]
+        /// 大きさごとの、いちばん長い間隔（秒）。前の作り直しから、その日の作り直しまで。
+        /// タイムラインは 6 時間ぶんなので、それより長いと、終わりの姿のまま止まっていた時間がある。
+        public let longestGapSeconds: [WidgetSlot.Family: TimeInterval]
+        /// その日の、拡張のメモリの最大値。記録が無ければ nil。
+        public let peakBytes: UInt64?
+        /// その日に作ったタイムラインの疑似アニメ（入は true）。入と切が混ざれば両方。記録が無ければ空。
+        public let pseudoAnimation: Set<Bool>
+        /// 記録が上限まで詰まっていて、その日の前のほうが捨てられているかもしれない。回数が 0 でも、
+        /// 作り直しが無かったとは限らない（止まっていたと取り違えないための印）。
+        public let isPartial: Bool
+
+        public init(day: Date, reloadCounts: [WidgetSlot.Family: Int],
+                    longestGapSeconds: [WidgetSlot.Family: TimeInterval], peakBytes: UInt64?,
+                    pseudoAnimation: Set<Bool>, isPartial: Bool = false) {
+            self.day = day
+            self.reloadCounts = reloadCounts
+            self.longestGapSeconds = longestGapSeconds
+            self.peakBytes = peakBytes
+            self.pseudoAnimation = pseudoAnimation
+            self.isPartial = isPartial
+        }
+    }
+
+    /// まとめる日数の上限。記録は 300 件（1 日 40 回で 1 週間）なので、それより前は数えても空になる。
+    /// 時計が大きくずれたときに、何百日も並べないための歯止め。
+    static let maximumSummaryDays = 31
+
+    /// `start` の日から `now` の日まで、1 日ずつまとめる。記録の無い日も 0 回として並べる
+    /// （作り直しが止まっていた日が分かる）。`now` が `start` より前なら空。
+    func daySummaries(from start: Date, through now: Date, calendar: Calendar) -> [DaySummary] {
+        guard now >= start else { return [] }
+        let lastDay = calendar.startOfDay(for: now)
+        let nextDay = { (day: Date) in calendar.date(byAdding: .day, value: 1, to: day) }
+        let days = sequence(first: calendar.startOfDay(for: start), next: nextDay).prefix { $0 <= lastDay }
+        let gaps = self.gaps
+        return days.suffix(Self.maximumSummaryDays).map { day in
+            summary(of: day, gaps: gaps.filter { calendar.isDate($0.endedAt, inSameDayAs: day) },
+                    reloads: reloads.filter { calendar.isDate($0.date, inSameDayAs: day) },
+                    isPartial: mayHaveDropped(before: day))
+        }
+    }
+}
+
+extension WidgetDiagnostics {
+
+    /// 同じ大きさの、となり合う作り直しの間隔。後の作り直しの時刻で、どの日のものかを決める。
+    struct Gap {
+        let family: WidgetSlot.Family
+        let endedAt: Date
+        let seconds: TimeInterval
+    }
+
+    var gaps: [Gap] {
+        Dictionary(grouping: reloads, by: \.family).flatMap { family, ofFamily in
+            let dates = ofFamily.map(\.date).sorted()
+            return zip(dates, dates.dropFirst()).map { earlier, later in
+                Gap(family: family, endedAt: later, seconds: later.timeIntervalSince(earlier))
+            }
+        }
+    }
+
+    func summary(of day: Date, gaps: [Gap], reloads: [WidgetReload], isPartial: Bool) -> DaySummary {
+        DaySummary(day: day,
+                   reloadCounts: Dictionary(grouping: reloads, by: \.family).mapValues(\.count),
+                   longestGapSeconds: Dictionary(grouping: gaps, by: \.family)
+                       .compactMapValues { $0.map(\.seconds).max() },
+                   peakBytes: reloads.map(\.peakBytes).max(),
+                   pseudoAnimation: Set(reloads.map(\.pseudoAnimation)),
+                   isPartial: isPartial)
+    }
+
+    /// `time` より前の記録が、上限で捨てられているかもしれないか。上限まで詰まっていて、いちばん古い記録が
+    /// `time` より後なら、その間の記録は捨てられた恐れがある（詰まっていなければ、捨てたものは無い）。
+    func mayHaveDropped(before time: Date) -> Bool {
+        guard reloads.count >= Self.capacity, let oldest = reloads.map(\.date).min() else { return false }
+        return oldest > time
     }
 }
