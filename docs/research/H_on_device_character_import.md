@@ -87,7 +87,7 @@
 
 - `PhotosPicker` は iOS 16 から。`preferredItemEncoding` は `.automatic`（最良の形式）・`.current`（**変換を避ける、できれば**）・`.compatible`（変換してでも互換の形式）✅。`Image` の `Transferable` は PNG と JPEG だけなので、`Data` で受ける ✅
 - **写真のアクセス許可は要らない**: 「ピッカーは別のプロセスで動くので既定で私的。利用者がアプリに写真の選択を許可する必要はない」✅（Apple の記事）。このアプリも `NSPhotoLibraryUsageDescription` を持たずに `PhotosPicker`（`photoLibrary: .shared()`）で壁紙を取り込めており、3-3 では `.current` ＋ `Data` で受け取った壁紙のスクショで、ウィジェットの中と外の壁紙が 0 画素でそろった ✅（プラン §9 の 3-3）
-- **PNG のアルファが残るか**: `.current` は変換を避けるので残るはず 🔷。`.compatible` は JPEG などへ変換しうるので、アルファを失う 🔷。ChatGPT・Gemini の iOS アプリが「写真に保存」するとき PNG のまま保存するかは **未確認**
+- **PNG のアルファが残るか**: `.current` は変換を避けるので残るはず 🔷。`.compatible` は JPEG などへ変換しうるので、アルファを失う 🔷。ChatGPT・Gemini の iOS アプリが「写真に保存」するとき PNG のまま保存するかは **未確認**（→ 2026-09-26 の A-7 で確かめた: iPhone の ChatGPT から写真に保存し AirDrop で送った絵は、Mac で保存した絵と 1 バイトも違わない透明の PNG だった。`docs/260926_prompt_templates.md` §2.2）
 - `.fileImporter(isPresented:allowedContentTypes:allowsMultipleSelection:onCompletion:)` は iOS 14 から。渡される URL はセキュリティスコープ付きで、`startAccessingSecurityScopedResource` と `stop…` で囲んで読む ✅。型は `.png`・`.jpeg`・`.heic`（`public.heic`）・`.webP`（`org.webmproject.webp`）・`.svg`（`public.svg-image`、`public.image` に準拠）✅
 - **ImageIO が読める形式**（macOS 26.5.2 の `CGImageSourceCopyTypeIdentifiers()`）✅実測: 読み 62 種・書き 22 種。PNG・JPEG・HEIC・HEICS・AVIF・GIF・TIFF は読み書き、**WebP と JPEG XL は読むだけ**、**SVG は無い**。WebP は Safari 14（iOS 14・macOS 11）で対応が入った ✅（リリースノート）。iOS 26 の一覧は **未確認**（同じ ImageIO なので同等と見込む 🔷）
 - 読んだときの形 ✅実測: PNG・WebP・HEIC のアルファ付きは 8bit・非乗算（`alphaInfo = .last`）で出てくる。縮小版（`CGImageSourceCreateThumbnailAtIndex`）の形は形式で違い、PNG・WebP は乗算済み（`premultipliedFirst`）、HEIC は非乗算のまま、16bit の PNG は 16bit の乗算済みになった。**16bit・Display P3・アルファ付きの PNG も 16bit・P3 のまま読めた**。ICC の無い PNG は sRGB として扱われた
@@ -140,7 +140,7 @@
 - 作業用の形は「sRGB・8bit・乗算済み RGBA」の 1 つに決め、入口で必ずそれに描き直す（16bit や P3 はここで落とす。パステルの平塗りでは差が見えない）
 - 大きさを変えるのは `CGContext`（`.high`、乗算済み）を標準にする。vImage を使うときは乗算済みで渡し、色をアルファで頭打ちにする。非乗算で渡すなら、先に透明な画素の色を近くの不透明な色で埋める
 - **解像度の目安**: 待受ではキャラの枠を画面の高さの 0.28 倍（iPhone 17 Pro で約 245pt、@3x で約 734 画素）で描くので ✅（`SceneLayout.characterHeightRatio`）、枠の 79.4%（143/180）の身長は約 583 画素。元の絵の身長がこれ以上なら引き伸ばさずに済む 🔷。体がコマの高さの 8 割を占めるとして、3×3 を 2048 四方で作ると身長は約 550 画素（ほぼ等倍）、1024 四方だと約 275 画素（約 2 倍に引き伸ばす）。取り込み時に「身長が 400 画素未満」なら作り直しを勧める。mini（身長 約 300 画素）は 1024 四方でも足りる
-- 生成サービスごとの出力の画素数（ChatGPT・Gemini のアプリで選べる大きさ）は **未確認**（API の上限は `research/C` §1）
+- 生成サービスごとの出力の画素数（ChatGPT・Gemini のアプリで選べる大きさ）は **未確認**（API の上限は `research/C` §1）（→ 2026-09-26 の 2-0 で測った: ChatGPT は約 157 万画素。1:1 は 1254×1254、3:4 は 1086×1448。Web から保存。`docs/260926_prompt_templates.md` §2.1）
 
 ## 7. ウィジェットで読む
 
@@ -187,7 +187,7 @@ let image = source.flatMap { CGImageSourceCreateThumbnailAtIndex($0, 0, options)
 3. **背景**: 透明 → そのまま / 縁が一様な単色 → 縁からつながる背景だけ柔らかく抜き、混ざりを戻し、背景色の成分を抑え、縁の色を内側から広げる / 市松 → 2 色で同じ処理 / それ以外 → Vision、番号ごとの切り抜きを見せて要らないものを外す
 4. **切り分け**: 連結成分 → 小片を体へ寄せる・隅の小片とゴミを捨てる → 期待数に合わせる → 行・列の順に並べる → 利用者がポーズを割り当て、向き（左向き）を確かめる
 5. **整える**: 立ち姿（目を開けた絵）の身長を枠の 79.4%（143/180）に合わせる倍率を、そのキャラの全コマに共通で使う。接地線（不透明さ 0.5 以上のいちばん下の行。足元の影は除く）を枠の 93.33% に、横は頭と胴（上 6 割）の中心を枠の中央に。**コマごとに余白を詰めない**。枠からはみ出す姿勢（寝そべり）だけは、その姿勢を枠に収まるまで縮めて知らせる。@3x 585×810 に `CGContext` の `.high` で描き、色をアルファで頭打ちにする
-6. **mini とまぶた**: mini は同じ整えたコマを @3x 273×378 に。まぶたは、目を開けた絵の目（頭の中の暗い塊）を見つけ、周りの肌の色で埋めて弧を描いた差分を作る（2 枚目の絵と位置が必ずそろう）か、2 枚目を 1 枚目に位置合わせしてから目の範囲だけの差分を取る（S6 で選ぶ）。目の範囲が見つからなければ、利用者に指で囲ませるか、まばたき無しにする（`eyelids` が空なら、その姿勢は 1 コマ目だけで描かれ、ほかの動きは残る。`AmbientCue.blinking` の作り ✅）。寝息の覆い判定は `tools/pipeline/art.py` の `covers` をそのまま移す
+6. **mini とまぶた**: mini は同じ整えたコマを @3x 273×378 に。まぶたは、目を開けた絵の目（頭の中の暗い塊）を見つけ、周りの肌の色で埋めて弧を描いた差分を作る（2 枚目の絵と位置が必ずそろう）か、2 枚目を 1 枚目に位置合わせしてから目の範囲だけの差分を取る（→ 2-0 の S6 で、目を開けた絵から作るほうに決めた。ChatGPT の 2 枚目は輪郭ごと 1〜2 画素ずれていた。プラン D-38）（S6 で選ぶ）。目の範囲が見つからなければ、利用者に指で囲ませるか、まばたき無しにする（`eyelids` が空なら、その姿勢は 1 コマ目だけで描かれ、ほかの動きは残る。`AmbientCue.blinking` の作り ✅）。寝息の覆い判定は `tools/pipeline/art.py` の `covers` をそのまま移す
 7. **保存**: `App Group/characters/<UUID>/` に PNG（@3x のみ）→ `character.json` の順に `.atomic` で書く。保護等級は既定。書き終えたらウィジェットに作り直しを頼む
 8. **ウィジェット**: mini とまぶただけを、描く画素数で ImageIO で縮めて読む。読めなければ同梱キャラか止めた 1 枚へ落ちる
 9. **持ち出し**: `.charatime`（二進 plist）を `ShareLink`、持ち込みは `onOpenURL` と `.fileImporter`
@@ -210,16 +210,16 @@ let image = source.flatMap { CGImageSourceCreateThumbnailAtIndex($0, 0, options)
 
 ## 11. 未確認事項
 
-- iOS 26 実機で `PhotosPicker`（`.current`）が PNG のアルファを保つか。ChatGPT・Gemini の iOS アプリが写真に何の形式で保存するか（S1）
+- iOS 26 実機で `PhotosPicker`（`.current`）が PNG のアルファを保つか。ChatGPT・Gemini の iOS アプリが写真に何の形式で保存するか（S1）（→ ChatGPT の保存は透明の PNG のまま、と A-7 で確かめた。`PhotosPicker` での受け取りは 2-6 のあと実機で）
 - iOS 26 の ImageIO が読める形式の一覧（macOS 26.5.2 でだけ確かめた）（S1）
 - Vision の実機での初回の時間・2 回目の時間・メモリ、Mac と同じ判定になるか（S2）。GitHub Actions の macOS の仮想機で Vision が動くか
 - Vision が「結果が空」を返す条件（小さい・多いの境目）。Apple の文書に数の上限の記述は無い
 - WKWebView の `takeSnapshot` が非不透明のとき透明のまま撮れるか、大きさの上限（S5）
 - `CGInterpolationQuality.high` の算法（文書に無い）
-- ChatGPT・Gemini のアプリで選べる出力の画素数（格子の 1 コマの解像度が決まる）
+- ChatGPT・Gemini のアプリで選べる出力の画素数（格子の 1 コマの解像度が決まる）（→ 2026-09-26 の 2-0 で測った: ChatGPT は約 157 万画素。1:1 は 1254×1254、3:4 は 1086×1448。Web から保存。`docs/260926_prompt_templates.md` §2.1）
 - 「ファイル」App が `.aar` を開けるか
 - App Group のファイルが iCloud バックアップに必ず含まれるか（DTS の回答は「私の理解では」）
-- 生成 AI の透明 PNG に足元の半透明の影が入るか、入ったときに接地線の検出がずれるか（S3）
+- 生成 AI の透明 PNG に足元の半透明の影が入るか、入ったときに接地線の検出がずれるか（S3）（→ 2-0 の ChatGPT の 3 枚には影が無かった。ただし体の中の不透明さは 253〜254 で 255 にならず、縁の外に 1〜31 の薄いにじみがあった）
 
 ## 12. 出典一覧（確認日はすべて 2026-09-26）
 
