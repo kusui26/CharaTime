@@ -123,6 +123,9 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
   頭だけ見て「動いている」と判断しない（3-2b）。
 - **アプリの画面のスクショは、List の頭しか写らない。** 下のほうは一時的に `ScrollViewReader` で送って撮り、
   撮ったら戻す（`defaultScrollAnchor` は List に効かない。3-4）。
+- **入れ直した直後は、設定のシートが出るまで 10 秒ほどかかることがある。** `ios-loop.sh` のスクショが待受の画面だけなら、
+  `xcrun simctl launch booted app.charatime -CTScreen <名前>` で開き直し、待ってから撮る。入れ直しが時間切れで
+  止まると、半分入った拡張が落ちたクラッシュ報告（dyld の「Library not loaded」）が残るが、コードとは関係ない（3-7）。
 - **写真アプリから画像を受け取るときは `preferredItemEncoding: .current`。** 既定では形式を変えられることがあり
   （JPEG など）、画素が変わる。透過背景の壁紙のスクショは `ImageStore.decodeExact` で縮めずに読む
   （`decodeScaled` は縮小の仕組みを通り、画素と色がずれうる。3-3）。
@@ -200,6 +203,7 @@ scripts/ios-loop.sh --screen widgets --time 21:05   # ウィジェットの下�
 scripts/ios-loop.sh --screen standBy --time 23:00   # StandBy の下見（昼と、夜の赤のまね）を撮る
 scripts/ios-loop.sh --screen transparent            # 設定の「透過背景」を開いて撮る（alignment で「位置を寄せる」）
 scripts/ios-loop.sh --screen guide                  # 設定の「置き方のガイド」を開いて撮る
+scripts/ios-loop.sh --screen weekRun                # 設定の「1 週間の運用」（3-7 の記録表）を開いて撮る
 ```
 
 **コミット前には必ず `scripts/check.sh` を通す。** 3 つの品質ゲート（lint・
@@ -285,7 +289,9 @@ CarPlay には勧めない（D-30）。
 大と中を同じページに置くとキャラが 2 匹に見える）。透過背景を敷くのもその大だけ（`SlotGeometry.largeAtTop`）。
 設定 →「置き方のガイド」に手順と、いまの様子（ウィジェットの記録から、大が置いてあるか・ラベルの有無・確かめた OS か。
 `PlacementCheck`）を置いた。手順の中の iOS の表示は、ロボットの `SpringBoardText` とそろえる。
-次は 3-7（1 週間の運用。記録表は Claude が用意する）。3-8（ページの部屋）は 3-7 のあと。
+**3-7 の記録表も済み**: 設定 →「1 週間の運用」。毎日の問い 3 つ・1・2 日目の電池（Q-15）・一度だけ確かめること
+（3-E の表）をつけ、作り直しとメモリは日ごとに自動で入る（`WeekRunRecord`・`WeekRunPlan`）。7 日目に書き出して送ってもらう
+（`WeekRunReport`）。**3-7 のあいだはビルドを替えない**（実機に入れ直さない）。3-8（ページの部屋）は 3-7 のあと。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
