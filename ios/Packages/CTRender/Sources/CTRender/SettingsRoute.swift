@@ -11,6 +11,10 @@ public enum SettingsRoute: Hashable, Sendable {
     case transparentAlignment
     /// 置き方のガイド（ウィジェットのページの作り方。3-4）。
     case placementGuide
+    /// 1 週間の運用の記録表（3-7）。
+    case weekRun
+    /// 記録表の、その日の記録をつけ直す画面（3-7）。
+    case weekRunDay(Int)
 }
 
 /// 透過背景のいまの様子。設定画面の行に出す（3-3）。

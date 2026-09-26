@@ -27,11 +27,13 @@ struct StandbyScreen: View {
     private static let showsStandByPreview =
         ProcessInfo.processInfo.arguments.contains("standBy")
 
-    /// `-CTScreen transparent`・`alignment`・`guide` で、設定の中の画面を開いた状態で起動する（確認用。3-3・3-4）。
+    /// `-CTScreen transparent`・`alignment`・`guide`・`weekRun` で、設定の中の画面を開いた状態で起動する
+    /// （確認用。3-3・3-4・3-7）。
     private static let initialSettingsPath: [SettingsRoute] = {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("alignment") { return [.transparentBackground, .transparentAlignment] }
         if arguments.contains("guide") { return [.placementGuide] }
+        if arguments.contains("weekRun") { return [.weekRun] }
         return arguments.contains("transparent") ? [.transparentBackground] : []
     }()
 
@@ -115,12 +117,16 @@ struct StandbyScreen: View {
                                      set: { model.setPseudoAnimation($0) }),
             widgetCapability: model.widgetCapability,
             // ウィジェットが作り直すたびに残した記録（3-2c）。記録は実時刻なので、時刻の早送りはかけない。
-            widgetRecord: model.widgetRecord, now: Date(), calendar: model.input.calendar)
+            widgetRecord: model.widgetRecord, now: Date(), calendar: model.input.calendar,
+            weekRunStatus: WeekRunPlan.status(startedAt: model.weekRun.startedAt, now: Date(),
+                                              calendar: model.input.calendar))
         .navigationDestination(for: SettingsRoute.self) { route in
             switch route {
             case .transparentBackground: TransparentBackgroundScreen(model: model)
             case .transparentAlignment: TransparentAlignmentScreen(model: model)
             case .placementGuide: PlacementGuideScreen(model: model)
+            case .weekRun: WeekRunScreen(model: model)
+            case .weekRunDay(let number): WeekRunDayScreen(model: model, number: number)
             }
         }
     }

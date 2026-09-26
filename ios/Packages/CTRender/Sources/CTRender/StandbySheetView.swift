@@ -20,10 +20,13 @@ public struct SettingsSummaryView: View {
     /// 記録の時刻を「きょう」と見比べる基準。記録は実時刻なので、時刻の早送りはかけない。
     public let now: Date
     public let calendar: Calendar
+    /// 1 週間の運用（3-7）の様子（「3 日目」など）。nil なら行を出さない。
+    public let weekRunStatus: String?
 
     public init(settings: CTStore.Settings, widget: WidgetSettings,
                 pseudoAnimation: Binding<Bool>? = nil, widgetCapability: RenderCapability? = nil,
-                widgetRecord: WidgetDiagnostics? = nil, now: Date = Date(), calendar: Calendar = .current) {
+                widgetRecord: WidgetDiagnostics? = nil, now: Date = Date(), calendar: Calendar = .current,
+                weekRunStatus: String? = nil) {
         self.settings = settings
         self.widget = widget
         self.pseudoAnimation = pseudoAnimation
@@ -31,6 +34,7 @@ public struct SettingsSummaryView: View {
         self.widgetRecord = widgetRecord
         self.now = now
         self.calendar = calendar
+        self.weekRunStatus = weekRunStatus
     }
 
     public var body: some View {
@@ -42,6 +46,9 @@ public struct SettingsSummaryView: View {
             }
             Section {
                 NavigationLink("置き方のガイド", value: SettingsRoute.placementGuide)
+                if let weekRunStatus {
+                    NavigationLink(value: SettingsRoute.weekRun) { row("1 週間の運用", weekRunStatus) }
+                }
                 if let pseudoAnimation {
                     Toggle("まばたき・寝息（疑似アニメ）", isOn: pseudoAnimation)
                 } else {

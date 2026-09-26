@@ -4,7 +4,8 @@ import CTStore
 /// 設定画面の「ウィジェットの記録」（プラン §9 Phase 3 の 3-2c）。
 ///
 /// ウィジェット拡張が作り直すたびに残した記録（`WidgetDiagnostics`）をまとめて見せる。
-/// 実機でメモリの最大値（R-18）と作り直しの間隔（3-7）を読むための欄で、ユーザーが記録表に写す。
+/// 実機でメモリの最大値（R-18）と作り直しの間隔（3-7）を読むための欄。1 週間の運用の記録表は、
+/// 同じ記録を日ごとにまとめて書き出す（`WeekRunReport`。写さなくてよい）。
 struct WidgetRecordSection: View {
 
     let diagnostics: WidgetDiagnostics
