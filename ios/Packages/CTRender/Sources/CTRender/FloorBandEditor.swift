@@ -73,8 +73,8 @@ public struct FloorBandEditor: View {
         return ZStack {
             ShadowView(position: position, layout: layout, flourish: .still,
                        characterScale: world.character.scale)
-            CharacterView(character: world.character, position: position, pick: .live(state),
-                          layout: layout, flourish: .still)
+            CharacterView(character: world.character, sprites: world.sprites, position: position,
+                          pick: .live(state, character: world.character), layout: layout, flourish: .still)
         }
         .opacity(opacity)
         .allowsHitTesting(false)

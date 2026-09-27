@@ -34,10 +34,11 @@ struct AmbientLook: Sendable, Equatable {
 /// 疑似アニメで動くキャラ。土台のコマを描き、重ねるコマとまぶたを窓で出し入れする（D-17）。
 ///
 /// 絵はどれもウィジェット用の小さい版（mini）で、止めた 1 枚と同じ枠に描く。段が変わっても
-/// キャラの位置と大きさは変わらない。
+/// キャラの位置と大きさは変わらない。絵の無い姿勢は、動かし方（`AmbientCue.pose`）がもう借りた立ち姿を指している。
 struct AmbientCharacterView: View {
 
     let character: CTCore.Character
+    let sprites: SpriteSource
     let position: RoomPoint
     let cue: AmbientCue
     let layout: SceneLayout
@@ -49,10 +50,11 @@ struct AmbientCharacterView: View {
         // マスクは一辺 cell の四角。絵の枠（縦長）をすっぽり覆うよう、長いほうの辺に合わせる。
         let cell = Swift.max(frame.width, frame.height)
         ZStack {
-            if let base = cue.baseFrame { SpriteView(assetName: spriteName(frame: base)) }
+            if let base = cue.baseFrame { SpriteView(name: spriteName(frame: base), source: sprites) }
             ForEach(Array(cue.overlays.enumerated()), id: \.offset) { _, overlay in
                 if let name = assetName(for: overlay.layer) {
-                    SpriteView(assetName: name).shown(during: overlay.window, anchor: anchor, cell: cell)
+                    SpriteView(name: name, source: sprites)
+                        .shown(during: overlay.window, anchor: anchor, cell: cell)
                 }
             }
         }
