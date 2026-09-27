@@ -107,7 +107,10 @@ public struct Character: Codable, Sendable, Equatable, Identifiable {
     /// 体格差。1.0 が身長 400px 相当の基準（プラン §5.3）。
     public var scale: Double
     public var personality: Personality
-    /// 姿勢ごとのアセット名。`poses[.walk] = ["piyo_walk_01", ...]`
+    /// 姿勢ごとの絵の名前。`poses[.walk] = ["piyo_walk_01", ...]`
+    ///
+    /// 同梱の子は Asset Catalog の名前、取り込んだ子はフォルダの中の相対パス（`hero/walk_01`。
+    /// プラン §9 Phase 2 の 2-C ③）。どちらでも、日課エンジンが見るのは姿勢ごとの数だけ。
     public var poses: [Pose: [String]]
     /// ウィジェット用の小さい絵（mini）のアセット名。並びは `poses` と同じ（プラン §5.3、D-20）。
     ///
@@ -157,10 +160,11 @@ public struct Character: Codable, Sendable, Equatable, Identifiable {
 
     /// ウィジェットの疑似アニメのために、この絵が持っているもの（`AmbientCue.cue` に渡す）。
     public var ambientArt: AmbientArt {
-        AmbientArt(eyelidPoses: Set(eyelids.keys), sleepFrameCoversBase: sleepFrameCoversBase)
+        AmbientArt(eyelidPoses: Set(eyelids.keys), sleepFrameCoversBase: sleepFrameCoversBase,
+                   frameCounts: frameCounts)
     }
 
-    /// その姿勢のコマ数。0 のときは呼び出し側が idle に落とす。
+    /// その姿勢のコマ数。0 のときは、描くときに立ち姿を借りる（`standIn(for:)`）。
     public func frameCount(_ pose: Pose) -> Int { poses[pose]?.count ?? 0 }
 }
 
@@ -331,7 +335,7 @@ public enum Activity: Codable, Sendable, Equatable {
         }
     }
 
-    /// この行動を描くのに使う姿勢。
+    /// この行動を描くのに使う姿勢。その絵が無いキャラは、立ち姿を借りて描く（`Character.standIn(for:)`）。
     public var pose: Pose {
         switch self {
         case .sleep, .nap:            .sleep
@@ -362,7 +366,7 @@ public struct SceneState: Sendable, Equatable {
     /// 床の中の位置（正規化座標）。
     public var position: RoomPoint
     public var facing: Facing
-    /// 姿勢の何コマ目か。
+    /// 描く絵の何コマ目か。姿勢の絵が無いときは、借りた立ち姿の絵のコマ（`PoseStandIn`）。
     public var frame: Int
     public var bubble: Bubble?
     /// 絵を足さずに動きを足すための味付け（呼吸・弾み・首のかしげ）。

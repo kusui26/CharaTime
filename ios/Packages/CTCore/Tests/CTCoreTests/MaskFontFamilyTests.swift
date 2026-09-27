@@ -12,8 +12,12 @@ struct MaskFontFamilyTests {
         .sleep, .nap, .wander, .idle, .sit(itemId: nil), .dance(itemId: "ball"), .dance(itemId: "none"),
         .play(itemId: "x"), .look(itemId: nil), .eat(itemId: "x"), .clockGreet, .happyStretch,
     ]
-    private static let arts = [AmbientArt(eyelidPoses: Set(Pose.allCases), sleepFrameCoversBase: true),
-                               AmbientArt(eyelidPoses: [], sleepFrameCoversBase: false)]
+    /// 絵のそろった子（Tier 1 とその先）と、立ち姿 1 枚の子（Tier 0。プラン §9 Phase 2 の 2-C ③）。
+    private static let arts = [
+        AmbientArt(eyelidPoses: Set(Pose.allCases), sleepFrameCoversBase: true, frameCounts: TestArt.everyPose),
+        AmbientArt(eyelidPoses: [], sleepFrameCoversBase: false, frameCounts: TestArt.tierOne),
+        AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false, frameCounts: TestArt.single),
+    ]
 
     /// 動かし方が作りうる窓のすべて（どの行動・まばたきの集まり・絵・吹き出しでも）。
     private static func everyWindow() -> [TimerWindow] {

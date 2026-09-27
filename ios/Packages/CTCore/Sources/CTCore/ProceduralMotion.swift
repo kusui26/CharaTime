@@ -77,6 +77,21 @@ public enum ProceduralMotion {
     public static let hopShadowShrink: Double = 0.34
     public static let hopShadowFade: Double = 0.40
 
+    // MARK: - 跳ねて歩く（歩く絵が無いとき。プラン §9 Phase 2 の 2-C ③）
+
+    /// 1 跳びの長さ（秒）。歩く絵の 1 歩（0.25 秒）より遅く、よろこぶ跳ね（0.62 秒）より速い、
+    /// 1 秒に 3 回ほど。足の動かない立ち姿でも、進んでいると読める速さにしてある。
+    public static let hopWalkPeriodSeconds: Double = 0.34
+    /// 跳ぶ高さ（身長に対する比）。身長 180pt なら約 6pt。歩きの弾み（約 3pt）だけでは、
+    /// 足の動かない絵が床を滑って見えるので、倍ほどにする。よろこぶ跳ね（約 10pt）よりは低い。
+    public static let hopWalkLiftRatio: Double = 0.035
+    /// 跳ぶたびに左右へ傾ける角度。よちよち歩きに見せる。すわるときのかしげと同じ大きさ。
+    public static let hopWalkWaddleDegrees: Double = 4.0
+    /// 低く跳ぶとき（歩きの弾み・跳ねて歩く）の、影の縮みと薄まりを、よろこぶ跳ねの何割にするか。
+    static let lowHopShadowShare: Double = 0.5
+    /// 着地のつぶれで、縦に縮んだぶんの何割だけ横に広がるか（体積を保って見せる）。歩きの弾みと同じ。
+    static let squashWidening: Double = 0.6
+
     /// その瞬間の味付け。`localSeconds` は区切りが始まってからの秒数。
     public static func flourish(pose: Pose, localSeconds: Double) -> Flourish {
         switch pose {
@@ -95,10 +110,10 @@ public enum ProceduralMotion {
         let height = abs(sin(.pi * seconds / walkBouncePeriodSeconds))
         let contact = 1 - height                       // 0 が空中、1 が接地
         return Flourish(liftRatio: height * walkLiftRatio,
-                        stretchX: 1 + walkSquash * contact * 0.6,
+                        stretchX: 1 + walkSquash * contact * squashWidening,
                         stretchY: 1 - walkSquash * contact,
-                        shadowScale: 1 - height * hopShadowShrink * 0.5,
-                        shadowOpacity: 1 - height * hopShadowFade * 0.5)
+                        shadowScale: 1 - height * hopShadowShrink * lowHopShadowShare,
+                        shadowOpacity: 1 - height * hopShadowFade * lowHopShadowShare)
     }
 
     /// よろこぶ・踊る。小さく跳ねながら左右に揺れる。
@@ -111,6 +126,20 @@ public enum ProceduralMotion {
                         tiltDegrees: swayDegrees * sway,
                         shadowScale: 1 - height * hopShadowShrink,
                         shadowOpacity: 1 - height * hopShadowFade)
+    }
+
+    /// 跳ねて歩く（歩く絵が無いときの代わり。2-C ③）。1 跳びごとに浮いて着地でつぶれ、
+    /// 跳ぶたびに左右へ傾く。傾きは跳びの頂で最も大きく、着地で 0 に戻る。
+    static func hopWalking(_ seconds: Double) -> Flourish {
+        let phase = sin(.pi * seconds / hopWalkPeriodSeconds)   // 1 跳びごとに符号が変わる
+        let height = abs(phase)
+        let contact = 1 - height                                 // 0 が空中、1 が接地
+        return Flourish(liftRatio: height * hopWalkLiftRatio,
+                        stretchX: 1 + walkSquash * contact * squashWidening,
+                        stretchY: 1 - walkSquash * contact,
+                        tiltDegrees: hopWalkWaddleDegrees * phase,
+                        shadowScale: 1 - height * hopShadowShrink * lowHopShadowShare,
+                        shadowOpacity: 1 - height * hopShadowFade * lowHopShadowShare)
     }
 
     /// 呼吸。体積を保つように、縦に伸びたら横は少し縮める。

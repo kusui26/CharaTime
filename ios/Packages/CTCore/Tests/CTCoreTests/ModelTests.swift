@@ -86,7 +86,8 @@ struct ModelTests {
         character.sleepFrameCoversBase = true
         let restored = try JSONDecoder().decode(Character.self, from: try JSONEncoder().encode(character))
         #expect(restored == character)
-        #expect(restored.ambientArt == AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true))
+        #expect(restored.ambientArt == AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true,
+                                                  frameCounts: TestArt.tierOne))
     }
 
     /// 分からないときは覆えないとみなす（重ねて縁がはみ出すより、2 枚を出し分けるほうが崩れない）。

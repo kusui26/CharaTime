@@ -150,7 +150,8 @@ struct SceneEngineTests {
         let start = Self.at(0, 0)
         let times = stride(from: 0, to: 24 * 3600, by: 7).map { start.addingTimeInterval(Double($0)) }
         for state in SceneEngine.sceneStates(at: times, input: world) {
-            let count = world.character.frameCount(state.activity.pose)
+            // コマ番号は描く絵のもの。見上げる絵は無いので、借りた立ち姿の枚数に収まる（PoseStandIn）。
+            let count = world.character.frameCount(world.character.standIn(for: state.activity.pose).source)
             #expect(state.frame >= 0)
             #expect(state.frame < max(1, count),
                     "\(state.activity) で \(state.frame) コマ目（用意は \(count) 枚）")
@@ -259,7 +260,7 @@ struct SceneEngineTests {
                 for offset in offsetsSeconds {
                     let state = SceneEngine.sceneState(at: time.addingTimeInterval(offset),
                                                        input: Self.world(context: context))
-                    let frameCount = character.frameCount(state.activity.pose)
+                    let frameCount = character.frameCount(character.standIn(for: state.activity.pose).source)
                     let message = "\(minute / 60):\(minute % 60)+\(offset)秒 \(state.activity.label)"
                         + " コマ \(state.frame) / \(frameCount) 枚"
                     #expect(state.frame >= 0 && state.frame < Swift.max(1, frameCount),

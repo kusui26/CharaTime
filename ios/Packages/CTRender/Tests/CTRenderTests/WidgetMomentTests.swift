@@ -28,6 +28,9 @@ struct WidgetMomentTests {
         WorldInput(character: character, room: BundledRoom.room, userSeed: 0x5EED_F00D, calendar: tokyo)
     }
 
+    /// Tier 1（§5.3 の 12 枚）の絵の枚数。同梱の 5 体と同じ。
+    static let tierOne: [Pose: Int] = [.idle: 2, .walk: 4, .sit: 2, .sleep: 2, .happy: 2]
+
     static let layout = WidgetStage.stage(for: .large).layout(
         size: WidgetStage.referenceSize(for: .large), room: BundledRoom.room,
         geometry: SpriteGeometry(aspectRatio: 130.0 / 180.0, groundRatio: 168.0 / 180.0))
@@ -80,7 +83,8 @@ struct WidgetMomentTests {
         let state = SceneState(time: Self.date(21, 5), activity: .dance(itemId: "ball"),
                                position: BundledRoom.floor.at(0.5, 0), facing: .front, frame: 0)
         let cue = AmbientCue.cue(for: state, room: room, blink: DigitSet([0, 5]),
-                                 art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false))
+                                 art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false,
+                                                 frameCounts: Self.tierOne))
         let moment = WidgetMoment(date: state.time, state: state, isNight: false, leg: 0,
                                   anchor: Self.tokyo.startOfDay(for: state.time), cue: cue)
         #expect(moment.ambientLook(at: .staticOnly) == nil)
@@ -99,7 +103,8 @@ struct WidgetMomentTests {
         let state = SceneState(time: Self.date(23, 30), activity: .sleep, position: BundledRoom.floor.at(0.2, 0.5),
                                facing: .front, frame: 0)
         let cue = AmbientCue.cue(for: state, room: BundledRoom.room, blink: DigitSet([0, 5]),
-                                 art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false))
+                                 art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false,
+                                                 frameCounts: Self.tierOne))
         let moment = WidgetMoment(date: state.time, state: state, isNight: true, leg: 0,
                                   anchor: Self.tokyo.startOfDay(for: state.time), cue: cue)
         let look = try #require(moment.ambientLook(at: .ambient1fps))
