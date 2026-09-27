@@ -50,7 +50,8 @@ public struct AmbientOverlay: Hashable, Sendable {
 
 /// キャラの絵が、ウィジェットの動きのために持っているもの（3-C ⑫）。
 ///
-/// どちらも絵から決まるので、パイプラインが画素を見て `characters.json` に書く（3-2b）。
+/// どれも絵から決まる。まぶたと寝息の判定は、パイプラインが画素を見て `characters.json` に書く（3-2b。
+/// 取り込んだキャラは、整える処理が `character.json` に書く）。枚数は、姿勢ごとの絵の数。
 public struct AmbientArt: Hashable, Sendable {
 
     /// まぶたの差分を持つ姿勢。
@@ -64,9 +65,22 @@ public struct AmbientArt: Hashable, Sendable {
     /// 2 コマ目だけを重ねる（タイマー 1 本）。覆えないなら 2 枚を出し分ける（2 本）。
     public let sleepFrameCoversBase: Bool
 
-    public init(eyelidPoses: Set<Pose>, sleepFrameCoversBase: Bool) {
+    /// 姿勢ごとの絵の枚数（`Character.frameCounts`）。絵の無い姿勢は立ち姿を借り（`PoseStandIn`）、
+    /// 1 枚しか無い姿勢は出し分けずに 1 コマ目だけを描く（プラン §9 Phase 2 の 2-C ③）。
+    public let frameCounts: [Pose: Int]
+
+    public init(eyelidPoses: Set<Pose>, sleepFrameCoversBase: Bool, frameCounts: [Pose: Int]) {
         self.eyelidPoses = eyelidPoses
         self.sleepFrameCoversBase = sleepFrameCoversBase
+        self.frameCounts = frameCounts
+    }
+
+    /// その姿勢の絵の枚数。
+    public func frameCount(_ pose: Pose) -> Int { frameCounts[pose] ?? 0 }
+
+    /// その姿勢の見せ方。待受モードと同じ表を引く（`Character.standIn(for:)`）。
+    public func standIn(for pose: Pose) -> PoseStandIn {
+        PoseStandIn.resolve(pose, frameCounts: frameCounts)
     }
 }
 
@@ -76,13 +90,14 @@ public struct AmbientArt: Hashable, Sendable {
 /// 別々のタイマーの境目で 1 コマだけ「両方見える／両方消える」が起きる（スパイク E）。
 /// 重ねる方式なら起きない。跳ねる絵（よろこぶ）のように土台を覆えないときだけ、2 枚を出し分ける。
 ///
-/// 描き手は `baseFrame` を描き、`overlays` を順に重ねる。絵はどれも `pose` のもの（姿勢に
-/// 絵が無ければ、待受モードと同じく立ち姿に落とす）。`pose` は `Activity.stillPose` と同じ。
-/// 描画の段が上がらないとき（5 分ごとの切り替え）も、同じ姿勢の 1 コマ目を描く。段が変わっても
-/// 姿勢が変わらないようにするため。
+/// 描き手は `baseFrame` を描き、`overlays` を順に重ねる。絵はどれも `pose` のもの。`pose` は
+/// `Activity.stillPose` の絵で、その絵が無ければ待受モードと同じく立ち姿を借りる（`PoseStandIn`）。
+/// 描画の段が上がらないとき（5 分ごとの切り替え）も、同じ絵の同じコマを描く。段が変わっても
+/// 姿が変わらないようにするため。
 public struct AmbientCue: Hashable, Sendable {
 
-    /// 描く姿勢。歩いているときは、立ち止まった姿（idle。`Activity.stillPose`）。
+    /// 描く絵の姿勢。歩いているときは、立ち止まった姿（idle。`Activity.stillPose`）。
+    /// 絵が無い姿勢のときは、借りた立ち姿（`PoseStandIn.source`）。
     public let pose: Pose
     /// 常に描くコマ。nil のときは、重ねるコマどうしで出し分ける。
     public let baseFrame: Int?
@@ -125,29 +140,40 @@ public extension AmbientCue {
     /// その姿の動かし方。
     ///
     /// - `blink`: そのキャラのまばたきの集まり（`BlinkRhythm.digits`）
-    /// - `art`: そのキャラの絵が持っているもの（まぶたの差分、寝息の 2 コマ目が覆えるか）
+    /// - `art`: そのキャラの絵が持っているもの（姿勢ごとの枚数、まぶたの差分、寝息の 2 コマ目が覆えるか）
     ///
+    /// キャラの動き（絵の出し入れ）に、飾り（寝ている z・光の粒）と時報の吹き出しを重ねる。
     /// 上限（`maximumTimers`）を超えるものは外してから返す。
     static func cue(for state: SceneState, room: Room, blink: DigitSet, art: AmbientArt) -> AmbientCue {
-        let body = bodyCue(for: state.activity, room: room, blink: blink, art: art)
+        let body = bodyCue(for: art.standIn(for: state.activity.stillPose), blink: blink, art: art)
         let bubble = state.bubble?.kind == .clock ? [clockBubble] : []
-        return AmbientCue(pose: body.pose, baseFrame: body.baseFrame, overlays: body.overlays + bubble)
+        let extras = decorations(for: state.activity, room: room) + bubble
+        return AmbientCue(pose: body.pose, baseFrame: body.baseFrame, overlays: body.overlays + extras)
             .fitted()
     }
 
     /// キャラの動き。歩く姿は、エントリの時刻に立ち止まった姿で描く（居場所の移動は
-    /// エントリ切替のアニメで見せる。3-C ④'）。
-    private static func bodyCue(for activity: Activity, room: Room, blink: DigitSet,
-                                art: AmbientArt) -> AmbientCue {
+    /// エントリ切替のアニメで見せる。3-C ④'）。絵の無い姿勢は、借りた立ち姿で描く（2-C ③）。
+    ///
+    /// 出し分けるのは、2 コマ目の絵があるときだけ。1 枚しか無い寝姿・よろこぶ姿は、1 コマ目のまま。
+    private static func bodyCue(for look: PoseStandIn, blink: DigitSet, art: AmbientArt) -> AmbientCue {
+        let pose = look.source
+        // 寝顔（目を閉じた立ち姿）は、出したまま。寝息の 2 コマ目が無い。
+        if let held = look.heldFrame { return AmbientCue(pose: pose, baseFrame: held, overlays: []) }
+        let hasSecondFrame = art.frameCount(pose) >= 2
+        switch pose {
+        case .sleep where hasSecondFrame: return sleeping(coversBase: art.sleepFrameCoversBase)
+        case .happy where hasSecondFrame: return cheering
+        default: return blinking(pose, blink: blink, art: art)
+        }
+    }
+
+    /// 飾り。寝ているときの z と、ミラーボールの前でおどるときの光の粒。キャラの絵に依らない。
+    private static func decorations(for activity: Activity, room: Room) -> [AmbientOverlay] {
         switch activity {
-        case .sleep, .nap:
-            sleeping(coversBase: art.sleepFrameCoversBase)
-        case .dance(let itemId):
-            cheering(withSparkles: room.hasMirrorBall(id: itemId))
-        case .play, .happyStretch:
-            cheering(withSparkles: false)
-        case .wander, .idle, .clockGreet, .eat, .sit, .look:
-            blinking(activity.stillPose, blink: blink, art: art)
+        case .sleep, .nap: sleepMarks
+        case .dance(let itemId) where room.hasMirrorBall(id: itemId): sparkles
+        default: []
         }
     }
 
@@ -161,11 +187,9 @@ public extension AmbientCue {
     /// 寝息。2 秒吸って 3 秒吐く。
     private static func sleeping(coversBase: Bool) -> AmbientCue {
         let exhale = AmbientOverlay(layer: .frame(1), window: .when(.sleepBreath))
-        guard !coversBase else {
-            return AmbientCue(pose: .sleep, baseFrame: 0, overlays: [exhale] + sleepMarks)
-        }
+        guard !coversBase else { return AmbientCue(pose: .sleep, baseFrame: 0, overlays: [exhale]) }
         let inhale = AmbientOverlay(layer: .frame(0), window: .when(DigitSet.sleepBreath.complement))
-        return AmbientCue(pose: .sleep, baseFrame: nil, overlays: [inhale, exhale] + sleepMarks)
+        return AmbientCue(pose: .sleep, baseFrame: nil, overlays: [inhale, exhale])
     }
 
     /// 寝ている「z」。1 つ目は出したまま、2 つ目・3 つ目を順に出し、5 秒ごとに z → zz → zzz と増やす
@@ -175,11 +199,11 @@ public extension AmbientCue {
          AmbientOverlay(layer: .sleepMark(2), window: .when(.thirdSleepMark))]
     }
 
-    /// よろこぶ 2 コマを 1 秒ごとに出し分ける。ミラーボールの前なら、光の粒も重ねる。
-    private static func cheering(withSparkles: Bool) -> AmbientCue {
-        let frames = [AmbientOverlay(layer: .frame(0), window: .when(.even)),
-                      AmbientOverlay(layer: .frame(1), window: .when(.odd))]
-        return AmbientCue(pose: .happy, baseFrame: nil, overlays: frames + (withSparkles ? sparkles : []))
+    /// よろこぶ 2 コマを 1 秒ごとに出し分ける。
+    private static var cheering: AmbientCue {
+        AmbientCue(pose: .happy, baseFrame: nil,
+                   overlays: [AmbientOverlay(layer: .frame(0), window: .when(.even)),
+                              AmbientOverlay(layer: .frame(1), window: .when(.odd))])
     }
 
     /// ミラーボールの光の粒。0.25 秒ずつずらした 4 つで、1 秒に 4 回きらめく。

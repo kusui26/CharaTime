@@ -132,9 +132,17 @@ public extension SlotGeometry {
 }
 
 /// 画素で数えた大きさ。
-struct PixelSize: Sendable, Equatable {
-    var width: Int
-    var height: Int
+public struct PixelSize: Sendable, Hashable {
+    public var width: Int
+    public var height: Int
+
+    public init(width: Int, height: Int) {
+        self.width = width
+        self.height = height
+    }
+
+    /// 長いほうの辺。ImageIO で縮めて読むときの上限（`kCGImageSourceThumbnailMaxPixelSize`）に使う。
+    public var longSide: Int { Swift.max(width, height) }
 }
 
 /// 枠を寄せる量（画素）。右と下が正。

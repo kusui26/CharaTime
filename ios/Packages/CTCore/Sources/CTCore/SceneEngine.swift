@@ -48,14 +48,16 @@ public enum SceneEngine {
     }
 
     /// 確定した行動に合わせて、コマ番号と味付けを入れる。
+    ///
+    /// 姿勢の絵が無ければ、立ち姿を借りる（`PoseStandIn`）。コマ番号は借りた絵のもの。
     static func animated(_ state: SceneState, in segment: Segment, atMinute minute: Double,
                          character: CTCore.Character, rng: IndexedRandom) -> SceneState {
-        let pose = state.activity.pose
+        let look = character.standIn(for: state.activity.pose)
         let localSeconds = (minute - segment.startMinute) * 60
         var result = state
-        result.frame = Motion.frameIndex(pose: pose, frameCount: character.frameCount(pose),
-                                         localSeconds: localSeconds, rng: rng)
-        result.flourish = ProceduralMotion.flourish(pose: pose, localSeconds: localSeconds)
+        result.frame = look.frameIndex(frameCount: character.frameCount(look.source),
+                                       localSeconds: localSeconds, rng: rng)
+        result.flourish = look.flourish(localSeconds: localSeconds)
         return result
     }
 

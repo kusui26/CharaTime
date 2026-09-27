@@ -1,7 +1,6 @@
 import Foundation
 import CoreGraphics
 import ImageIO
-import UniformTypeIdentifiers
 
 /// ユーザーが選んだ写真とホーム画面のスクリーンショットを置く場所。
 ///
@@ -114,13 +113,10 @@ public struct ImageStore: Sendable {
     }
 
     static func writePNG(_ image: CGImage, to url: URL, name: String) throws {
-        guard let destination = CGImageDestinationCreateWithURL(
-            url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
-            throw StoreError.writeFailed(name: name, reason: "書き出し先を作れませんでした")
-        }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else {
-            throw StoreError.writeFailed(name: name, reason: "書き出しが終わりませんでした")
+        do {
+            try ImageFile.writePNG(image, to: url)
+        } catch {
+            throw StoreError.writeFailed(name: name, reason: error.reason)
         }
     }
 
@@ -129,24 +125,14 @@ public struct ImageStore: Sendable {
     /// 画像を読む。**読めなければ nil を返す。**
     /// ウィジェット拡張は落ちるとその後の更新まで止まるので、例外を投げない。
     public func load(_ name: String) -> CGImage? {
-        guard let url = url(for: name),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              CGImageSourceGetCount(source) > 0 else { return nil }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        url(for: name).flatMap { ImageFile.read(at: $0) }
     }
 
     /// 縮めた画像を読む（画面に小さく見せるため）。長辺を `maxPixelSize` に収める。読めなければ nil。
     ///
     /// 壁紙のスクショ（1206×2622、展開して約 12.6 MB）を、見せるたびに丸ごと展開しないようにする。
     public func thumbnail(_ name: String, maxPixelSize: Int) -> CGImage? {
-        guard let url = url(for: name),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              CGImageSourceGetCount(source) > 0 else { return nil }
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-        ]
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        url(for: name).flatMap { ImageFile.thumbnail(at: $0, maxPixelSize: maxPixelSize) }
     }
 
     // MARK: - 片づけ

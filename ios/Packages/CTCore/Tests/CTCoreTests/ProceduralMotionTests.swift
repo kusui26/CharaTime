@@ -37,6 +37,36 @@ struct ProceduralMotionTests {
         }
     }
 
+    /// 歩く絵が無いときの代わり（プラン §9 Phase 2 の 2-C ③）も、同じ度合いに収める。
+    @Test("跳ねて歩くも、どの時刻でも度を越さない")
+    func hopWalkStaysWithinBounds() {
+        for seconds in Self.samples {
+            let flourish = ProceduralMotion.hopWalking(seconds)
+            let note = "\(seconds) 秒: \(flourish)"
+            #expect((0...0.08).contains(flourish.liftRatio), Comment(rawValue: note))
+            #expect((0.92...1.08).contains(flourish.stretchX), Comment(rawValue: note))
+            #expect((0.92...1.08).contains(flourish.stretchY), Comment(rawValue: note))
+            #expect(abs(flourish.tiltDegrees) <= 6, Comment(rawValue: note))
+            #expect((0.5...1.0).contains(flourish.shadowScale), Comment(rawValue: note))
+            #expect((0.5...1.0).contains(flourish.shadowOpacity), Comment(rawValue: note))
+        }
+    }
+
+    @Test("跳ねて歩くは、着地で 0・跳びの頂で最大で、跳ぶたびに左右が入れ替わる")
+    func hopWalkWaddlesOncePerHop() {
+        let period = ProceduralMotion.hopWalkPeriodSeconds
+        let landing = ProceduralMotion.hopWalking(0)
+        #expect(landing.liftRatio == 0 && landing.tiltDegrees == 0)
+        #expect(landing.stretchY < 1, "着地でつぶれる")
+        let first = ProceduralMotion.hopWalking(period / 2)
+        let second = ProceduralMotion.hopWalking(period * 1.5)
+        #expect(abs(first.liftRatio - ProceduralMotion.hopWalkLiftRatio) < 0.000_1)
+        #expect(abs(second.liftRatio - ProceduralMotion.hopWalkLiftRatio) < 0.000_1)
+        #expect(abs(first.tiltDegrees - ProceduralMotion.hopWalkWaddleDegrees) < 0.000_1)
+        #expect(abs(second.tiltDegrees + ProceduralMotion.hopWalkWaddleDegrees) < 0.000_1)
+        #expect(ProceduralMotion.hopWalking(period).liftRatio < 0.000_1, "1 跳びで着地する")
+    }
+
     @Test("眠っているあいだは浮かないし、傾かない")
     func sleepingStaysOnTheFloor() {
         for seconds in Self.samples {
@@ -73,11 +103,12 @@ struct ProceduralMotionTests {
 
     @Test("浮いているときは影が小さく薄くなる")
     func shadowFollowsTheLift() {
-        for pose in [Pose.walk, .happy] {
-            let onGround = ProceduralMotion.flourish(pose: pose, localSeconds: 0)
-            let highest = (0...200).map {
-                ProceduralMotion.flourish(pose: pose, localSeconds: Double($0) * 0.01)
-            }.max { $0.liftRatio < $1.liftRatio }
+        let motions: [(Double) -> Flourish] = [{ ProceduralMotion.flourish(pose: .walk, localSeconds: $0) },
+                                                { ProceduralMotion.flourish(pose: .happy, localSeconds: $0) },
+                                                ProceduralMotion.hopWalking]
+        for motion in motions {
+            let onGround = motion(0)
+            let highest = (0...200).map { motion(Double($0) * 0.01) }.max { $0.liftRatio < $1.liftRatio }
             guard let lifted = highest else { Issue.record("味付けが 1 つも取れなかった"); return }
             #expect(lifted.shadowScale < onGround.shadowScale)
             #expect(lifted.shadowOpacity < onGround.shadowOpacity)

@@ -19,7 +19,7 @@ struct ItemView: View {
         let frame = layout.itemFrame(item, definition: definition)
         ZStack {
             if definition.hangsFromCeiling && showsCord { cord(to: frame) }
-            SpriteView(assetName: definition.assetName)
+            SpriteView(name: definition.assetName, source: .catalog)
                 .frame(width: frame.width, height: frame.height)
                 .position(x: frame.midX, y: frame.midY)
         }

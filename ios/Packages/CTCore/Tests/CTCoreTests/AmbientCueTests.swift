@@ -12,11 +12,21 @@ struct AmbientCueTests {
     private static let room = Room(background: .bundled("room"), floor: .unit, items: [ball, cushion])
 
     /// いまの絵（Tier 1）。まばたきの絵は立ち姿（idle_02）とすわる姿（sit_02。3-2b で足した）にある。
-    private static let tierOne = AmbientArt(eyelidPoses: [.idle, .sit], sleepFrameCoversBase: true)
-    /// すわる姿のまばたきの絵が無い絵（3-2b より前の Tier 1 や、取り込んだキャラ）。
-    private static let standingOnly = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true)
-    /// どの姿勢にもまぶたの差分がある絵（すわる・見上げるにもまばたきの絵を足したとき）。
-    private static let everyEyelid = AmbientArt(eyelidPoses: Set(Pose.allCases), sleepFrameCoversBase: true)
+    /// 見上げる絵（Tier 2）は無い。
+    private static let tierOne = AmbientArt(eyelidPoses: [.idle, .sit], sleepFrameCoversBase: true,
+                                            frameCounts: TestArt.tierOne)
+    /// すわる姿のまばたきの絵が無い絵（3-2b より前の Tier 1）。
+    private static let standingOnly = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: true,
+                                                 frameCounts: TestArt.tierOne)
+    /// どの姿勢にも絵とまぶたの差分がある絵（見上げる・驚くの絵と、どれにもまばたきの絵を足したとき）。
+    private static let everyEyelid = AmbientArt(eyelidPoses: Set(Pose.allCases), sleepFrameCoversBase: true,
+                                                frameCounts: TestArt.everyPose)
+    /// 立ち姿 1 枚の子（Tier 0。2-C ③）。まばたきの絵とまぶたは、アプリが作る。
+    private static let single = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false,
+                                           frameCounts: TestArt.single)
+    /// 立ち姿 1 枚で、目が見つからず、まばたきの絵もまぶたも作れなかった子。
+    private static let singleWithoutBlink = AmbientArt(eyelidPoses: [], sleepFrameCoversBase: false,
+                                                       frameCounts: TestArt.singleWithoutBlink)
 
     private func state(_ activity: Activity, bubble: Bubble? = nil) -> SceneState {
         SceneState(time: TestClock.today(20, 0), activity: activity,
@@ -78,12 +88,16 @@ struct AmbientCueTests {
         #expect(layers(looking) == [.eyelid])
     }
 
-    /// まぶたの差分は、まばたきの絵から作る。見上げる姿にはまばたきの絵が無いので作れない
+    /// まぶたの差分は、まばたきの絵から作る。見上げる絵を足しても、そのまばたきの絵が無ければ作れない
     /// （すわる姿も、まばたきの絵が無い絵なら同じ）。別の姿勢の差分を重ねると、顔の位置が違うので
     /// 目の外にまぶたが浮く。
-    @Test("まぶたの差分が無い姿勢は、1 コマ目だけを描く（タイマー 0 本）")
+    @Test("絵はあっても、まぶたの差分が無い姿勢は、1 コマ目だけを描く（タイマー 0 本）")
     func posesWithoutEyelidStayStill() {
-        let stills = [cue(.look(itemId: nil)), cue(.sit(itemId: "cu"), art: Self.standingOnly)]
+        let withLookUp = AmbientArt(eyelidPoses: [.idle, .sit], sleepFrameCoversBase: true,
+                                    frameCounts: TestArt.tierOne.merging([.lookUp: 1]) { $1 })
+        let looking = cue(.look(itemId: nil), art: withLookUp)
+        let stills = [looking, cue(.sit(itemId: "cu"), art: Self.standingOnly)]
+        #expect(looking.pose == .lookUp)
         for still in stills {
             #expect(still.baseFrame == 0)
             #expect(still.overlays.isEmpty)
@@ -122,7 +136,7 @@ struct AmbientCueTests {
     /// 2 コマ目が 1 コマ目を覆えないと、重ねても 1 コマ目がはみ出して見える。
     @Test("2 コマ目が土台を覆えないときは、2 枚を出し分け、いつもどちらか 1 枚だけが見える")
     func sleepWithoutCoverAlternates() {
-        let art = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false)
+        let art = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false, frameCounts: TestArt.tierOne)
         let sleeping = cue(.sleep, art: art)
         #expect(sleeping.pose == .sleep)
         #expect(sleeping.baseFrame == nil)
@@ -212,7 +226,8 @@ struct AmbientCueTests {
     /// 寝ている z は飾りなので、光の粒と同じく先に外す。寝息（キャラの動き）は最後まで残す。
     @Test("上限を超えるときは、寝ている z を先に外し、寝息は残す")
     func dropsSleepMarksBeforeBreathing() {
-        let sleeping = cue(.sleep, art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false))
+        let sleeping = cue(.sleep, art: AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false,
+                                                   frameCounts: TestArt.tierOne))
         #expect(layers(sleeping.fitted(toTimers: 3)) == [.frame(0), .frame(1)])
         #expect(sleeping.limited(to: .perSecond) == sleeping)
     }
@@ -244,16 +259,99 @@ struct AmbientCueTests {
         }
     }
 
-    /// 描画の段が変わっても（5 分ごとの切り替え ⇄ 1fps）、描く姿勢は変わらない。
-    @Test("動かし方の姿勢は、止めた 1 枚の姿勢と同じ")
+    /// 描画の段が変わっても（5 分ごとの切り替え ⇄ 1fps）、描く絵は変わらない。止めた 1 枚（CTRender の
+    /// `SpritePick.still`）も同じ表（`PoseStandIn`）を引き、同じ姿勢の絵の、同じコマを描く。
+    @Test("動かし方の絵は、止めた 1 枚と同じ表で決まる（足りない姿勢も）")
     func cuePoseMatchesStillPose() {
-        let activities: [Activity] = [.sleep, .nap, .wander, .idle, .sit(itemId: "cu"), .dance(itemId: "ball"),
-                                      .play(itemId: "cu"), .look(itemId: nil), .eat(itemId: "x"),
-                                      .clockGreet, .happyStretch]
-        for activity in activities {
-            #expect(cue(activity).pose == activity.stillPose, "\(activity)")
+        for art in [Self.tierOne, Self.everyEyelid, Self.single, Self.singleWithoutBlink] {
+            for activity in Self.activities {
+                let look = art.standIn(for: activity.stillPose)
+                let moving = cue(activity, art: art)
+                #expect(moving.pose == look.source, "\(activity)")
+                if let held = look.heldFrame { #expect(moving.baseFrame == held, "\(activity)") }
+            }
+        }
+        // 絵のそろった子は、止めた 1 枚の姿勢そのまま。
+        for activity in Self.activities {
+            #expect(cue(activity, art: Self.everyEyelid).pose == activity.stillPose, "\(activity)")
         }
     }
+
+    // MARK: - 足りない姿勢の代わり（プラン §9 Phase 2 の 2-C ③）
+
+    /// 同梱の 5 体にも見上げる絵（Tier 2）は無い。立ち姿を借りるので、立ち姿のまぶたでまばたける。
+    @Test("見上げる絵が無ければ、立ち姿を借りて、まばたく")
+    func lookingBorrowsTheStandingPose() {
+        let looking = cue(.look(itemId: nil))
+        #expect(looking.pose == .idle)
+        #expect(looking.baseFrame == 0)
+        #expect(layers(looking) == [.eyelid])
+    }
+
+    @Test("立ち姿 1 枚の子は、すわる・よろこぶ・おどるも立ち姿でまばたき、ミラーボールの前なら光の粒も出す")
+    func singlePictureBlinksInEveryPose() {
+        for activity in [Activity.sit(itemId: "cu"), .play(itemId: "cu"), .happyStretch, .dance(itemId: "cu"),
+                         .look(itemId: nil), .wander, .idle] {
+            let moving = cue(activity, art: Self.single)
+            #expect(moving.pose == .idle && moving.baseFrame == 0, "\(activity)")
+            #expect(layers(moving) == [.eyelid], "\(activity)")
+        }
+        let dancing = cue(.dance(itemId: "ball"), art: Self.single)
+        #expect(layers(dancing) == [.eyelid, .sparkle(0), .sparkle(1), .sparkle(2), .sparkle(3)])
+        #expect(dancing.timerCount == 6)
+    }
+
+    /// 寝顔は目を閉じた立ち姿（まばたきの絵）。寝息の 2 コマ目は無いので出したまま、z だけが増える。
+    @Test("立ち姿 1 枚の子の寝姿は、目を閉じた立ち姿を出したまま、z を増やしていく")
+    func singlePictureSleepsWithEyesClosed() {
+        for activity in [Activity.sleep, .nap] {
+            let sleeping = cue(activity, art: Self.single)
+            #expect(sleeping.pose == .idle)
+            #expect(sleeping.baseFrame == PoseStandIn.eyesClosedFrame)
+            #expect(layers(sleeping) == [.sleepMark(1), .sleepMark(2)])
+            #expect(sleeping.timerCount == 2)
+        }
+    }
+
+    @Test("まばたきの絵も無い 1 枚の子は、目を開けたまま寝て、ほかの姿は 1 コマ目だけ（飾りは出す）")
+    func singlePictureWithoutBlinkStaysStill() {
+        let sleeping = cue(.sleep, art: Self.singleWithoutBlink)
+        #expect(sleeping.pose == .idle && sleeping.baseFrame == 0)
+        #expect(layers(sleeping) == [.sleepMark(1), .sleepMark(2)])
+        for activity in [Activity.sit(itemId: "cu"), .idle, .play(itemId: "cu"), .look(itemId: nil)] {
+            let still = cue(activity, art: Self.singleWithoutBlink)
+            #expect(still.pose == .idle && still.baseFrame == 0 && still.overlays.isEmpty, "\(activity)")
+        }
+        #expect(layers(cue(.dance(itemId: "ball"), art: Self.singleWithoutBlink))
+                == [.sparkle(0), .sparkle(1), .sparkle(2), .sparkle(3)])
+    }
+
+    /// 2 コマ目が無いのに出し分けると、同じ絵を 2 本のタイマーで出し入れするだけになる。
+    @Test("寝姿・よろこぶ姿が 1 枚しか無い絵は、出し分けずに 1 コマ目を描く")
+    func singleFramePosesDoNotAlternate() {
+        let art = AmbientArt(eyelidPoses: [.idle], sleepFrameCoversBase: false,
+                             frameCounts: [.idle: 2, .sleep: 1, .happy: 1])
+        let sleeping = cue(.sleep, art: art)
+        #expect(sleeping.pose == .sleep && sleeping.baseFrame == 0)
+        #expect(layers(sleeping) == [.sleepMark(1), .sleepMark(2)])
+        let cheering = cue(.happyStretch, art: art)
+        #expect(cheering.pose == .happy && cheering.baseFrame == 0 && cheering.overlays.isEmpty)
+    }
+
+    /// ウィジェットは歩く姿を立ち止まった姿で描く（3-C ④'）。歩く絵の有無で、動かし方は変わらない。
+    @Test("歩く絵の無い子（ポーズの格子だけ）も、ウィジェットでは 12 枚の子と同じ動かし方")
+    func walkingPicturesDoNotMatterToTheWidget() {
+        let posesOnly = AmbientArt(eyelidPoses: [.idle, .sit], sleepFrameCoversBase: true,
+                                   frameCounts: TestArt.posesOnly)
+        for activity in Self.activities {
+            #expect(cue(activity, art: posesOnly) == cue(activity), "\(activity)")
+        }
+    }
+
+    private static let activities: [Activity] = [
+        .sleep, .nap, .wander, .idle, .sit(itemId: "cu"), .dance(itemId: "ball"), .play(itemId: "cu"),
+        .look(itemId: nil), .eat(itemId: "x"), .clockGreet, .happyStretch,
+    ]
 
     // MARK: - 道具
 

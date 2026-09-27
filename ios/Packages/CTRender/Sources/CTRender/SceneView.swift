@@ -119,7 +119,9 @@ struct SceneLayers: View {
         }
     }
 
-    private var pick: SpritePick { look.stills ? .still(state) : .live(state) }
+    private var pick: SpritePick {
+        look.stills ? .still(state, character: world.character) : .live(state, character: world.character)
+    }
     private var flourish: Flourish { look.flourishes ? state.flourish : .still }
 
     private var character: some View {
@@ -127,11 +129,12 @@ struct SceneLayers: View {
             ShadowView(position: state.position, layout: layout, flourish: flourish,
                        characterScale: world.character.scale)
             if let ambient = look.ambient {
-                AmbientCharacterView(character: world.character, position: state.position,
-                                     cue: ambient.cue, layout: layout, anchor: ambient.anchor)
+                AmbientCharacterView(character: world.character, sprites: world.sprites,
+                                     position: state.position, cue: ambient.cue, layout: layout,
+                                     anchor: ambient.anchor)
             } else {
-                CharacterView(character: world.character, position: state.position, pick: pick,
-                              layout: layout, flourish: flourish)
+                CharacterView(character: world.character, sprites: world.sprites, position: state.position,
+                              pick: pick, layout: layout, flourish: flourish)
             }
         }
         .id(look.characterIdentity)
@@ -194,29 +197,33 @@ struct SceneLayers: View {
 public struct SceneWorld: Sendable {
 
     public var character: CTCore.Character
+    /// キャラの絵の出どころ。同梱の子は Asset Catalog、取り込んだ子は読み込んだ絵（2-C ⑥）。
+    public var sprites: SpriteSource
     public var room: Room
     public var definitions: [ItemKind: ItemDefinition]
     public var spriteGeometry: SpriteGeometry
     /// 背景の出どころ。
     public var backdrop: RoomBackdrop
 
-    public init(character: CTCore.Character, room: Room,
+    public init(character: CTCore.Character, sprites: SpriteSource = .catalog, room: Room,
                 definitions: [ItemKind: ItemDefinition],
                 spriteGeometry: SpriteGeometry = .fallback,
                 backdrop: RoomBackdrop = .drawn()) {
         self.character = character
+        self.sprites = sprites
         self.room = room
         self.definitions = definitions
         self.spriteGeometry = spriteGeometry
         self.backdrop = backdrop
     }
 
-    /// 同梱データから組み立てる。読めない項目は既定値で埋める（落とさないため）。
-    public static func bundled(character: CTCore.Character, room: Room,
+    /// 同梱データ（アイテムと絵の枠）から組み立てる。読めない項目は既定値で埋める（落とさないため）。
+    /// 取り込んだ子も同じ枠で描くので、ここで組み立てる（絵の出どころだけを `sprites` で渡す）。
+    public static func bundled(character: CTCore.Character, sprites: SpriteSource = .catalog, room: Room,
                                backdrop: RoomBackdrop = .drawn()) -> SceneWorld {
         let definitions = Dictionary(Catalog.itemsOrEmpty().map { ($0.kind, $0) },
                                      uniquingKeysWith: { first, _ in first })
-        return SceneWorld(character: character, room: room, definitions: definitions,
+        return SceneWorld(character: character, sprites: sprites, room: room, definitions: definitions,
                           spriteGeometry: Catalog.spriteGeometry(), backdrop: backdrop)
     }
 }
