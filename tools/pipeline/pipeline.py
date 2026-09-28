@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """CharaTime アセットパイプライン。
 
-`design/` の SVG から、アプリが読む PNG と同梱データ JSON を作る。
-**画像を手で足さない**（.claude/CLAUDE.md §2）。足したいときはここを通す。
+`design/` の SVG と、chara-bake が整えた絵（`assets-src/characters/<id>/final/`）から、アプリが読む PNG と
+同梱データ JSON を作る。**画像を手で足さない**（.claude/CLAUDE.md §2）。足したいときはここを通す。
 
     python3 tools/pipeline/pipeline.py            # 全部
     python3 tools/pipeline/pipeline.py --check    # 書き出さず、整合だけ見る
 
-Phase 2 で生成 AI の絵に差し替わるが、**出力の形（imageset の名前・倍率・
-接地の位置）は変えない**。差し替えるのは入口（`_character_svgs`）だけでよい。
+キャラは、final/ があればそこから（生成 AI の本番の絵。Phase 2 の 2-3・2-4）、無ければ SVG から焼く。
+どちらでも**出力の形（imageset の名前・倍率・接地の位置）は変えない**。
 """
 import argparse
 import pathlib
@@ -22,10 +22,13 @@ import chara            # noqa: E402  design/chara.py
 import scene            # noqa: E402  design/scene.py
 import art              # noqa: E402
 import catalog          # noqa: E402
+import final            # noqa: E402
 import masks            # noqa: E402
 import rasterize        # noqa: E402
 
 RESOURCES = ROOT / "ios/Packages/CTAssets/Sources/CTAssets/Resources"
+# chara-bake が整えた絵の置き場（`<id>/final/`）。生のままの絵（`<id>/raw/`）は git に入れない。
+FINAL_ROOT = ROOT / "assets-src/characters"
 CHARACTER_CATALOG = RESOURCES / "Characters.xcassets"
 ITEM_CATALOG = RESOURCES / "Items.xcassets"
 
@@ -94,12 +97,28 @@ def _mini_png(catalog_dir, name, suffix):
     return catalog_dir / ("%s.imageset" % name) / ("%s%s.png" % (name, suffix))
 
 
+def _eyelid_name(character, pose):
+    """`piyo_idle_eyelid_mini` の形。"""
+    return "%s_%s%s" % (character, pose, EYELID_SUFFIX)
+
+
+def _final_folder(character):
+    return FINAL_ROOT / character / "final"
+
+
+def _final_names(character, poses):
+    """final/ の絵を入れる imageset の名前（SVG のキャラと同じ名前）。"""
+    return {"hero": poses,
+            "mini": {pose: [_mini_name(name) for name in names] for pose, names in poses.items()},
+            "eyelid": {pose: _eyelid_name(character, pose) for pose, _, _ in _eyelid_poses()}}
+
+
 def _bake_eyelids(character, poses, catalog_dir, work):
     """まばたきの絵を持つ姿勢ごとに、mini のまぶたの差分を作る。{姿勢: 名前} を返す。"""
     made = {}
     for pose, open_index, blink_index in _eyelid_poses():
         minis = [_mini_name(name) for name in poses[pose]]
-        name = "%s_%s%s" % (character, pose, EYELID_SUFFIX)
+        name = _eyelid_name(character, pose)
         written = []
         for scale, suffix in catalog.SCALES:
             out = work / ("%s%s.png" % (name, suffix))
@@ -137,6 +156,18 @@ def _bake_frames(character, frames, names, cell, catalog_dir, work):
             [(scale, per_scale[scale][index]) for scale, _ in catalog.SCALES])
 
 
+def _bake_svg_character(character, frames, names, poses, catalog_dir, work):
+    """design/ の SVG から 1 体ぶんを焼く（final/ がまだ無いキャラ）。"""
+    drawn = [f for _, f in frames]
+    _bake_frames(character, drawn, names, (CHARACTER_WIDTH, CHARACTER_HEIGHT), catalog_dir, work)
+    _bake_frames(character, drawn, [_mini_name(n) for n in names], (MINI_WIDTH, MINI_HEIGHT),
+                 catalog_dir, work)
+    return {
+        "eyelids": _bake_eyelids(character, poses, catalog_dir, work),
+        "sleepFrameCoversBase": _sleep_frame_covers_base(poses, catalog_dir),
+    }
+
+
 def build_characters(check_only=False):
     frames = [(pose, frame) for pose, fs in chara.FRAMES for frame in fs]
     names_by_character = {}
@@ -156,6 +187,9 @@ def build_characters(check_only=False):
     if check_only:
         return poses_by_character
 
+    # final/ を先に確かめる。形が違えば、Asset Catalog を空にする前に止める。
+    final_by_character = {character: final.load(_final_folder(character), chara.FRAMES, chara.BLINK_OF)
+                          for character in chara.P}
     catalog_dir = rasterize.reset_directory(CHARACTER_CATALOG)
     catalog.write_catalog_root(catalog_dir)
     work = catalog_dir / "_work"
@@ -164,17 +198,19 @@ def build_characters(check_only=False):
     ambient_by_character = {}
     for character in chara.P:
         names = names_by_character[character]
-        drawn = [f for _, f in frames]
-        _bake_frames(character, drawn, names, (CHARACTER_WIDTH, CHARACTER_HEIGHT), catalog_dir, work)
-        _bake_frames(character, drawn, [_mini_name(n) for n in names], (MINI_WIDTH, MINI_HEIGHT),
-                     catalog_dir, work)
         poses = poses_by_character[character]
-        ambient_by_character[character] = {
-            "eyelids": _bake_eyelids(character, poses, catalog_dir, work),
-            "sleepFrameCoversBase": _sleep_frame_covers_base(poses, catalog_dir),
-        }
-        print("  %-6s %2d 枚（ほかにウィジェット用 %d 枚・まぶた %d 枚、寝息の 2 コマ目が%s）"
-              % (character, len(names), len(names), len(ambient_by_character[character]["eyelids"]),
+        final_art = final_by_character[character]
+        if final_art is None:
+            ambient_by_character[character] = _bake_svg_character(character, frames, names, poses,
+                                                                   catalog_dir, work)
+        else:
+            ambient_by_character[character] = final.bake(
+                final_art, _final_names(character, poses),
+                {"hero": (CHARACTER_WIDTH, CHARACTER_HEIGHT), "mini": (MINI_WIDTH, MINI_HEIGHT)},
+                catalog_dir, work)
+        print("  %-6s %2d 枚（%s。ほかにウィジェット用 %d 枚・まぶた %d 枚、寝息の 2 コマ目が%s）"
+              % (character, len(names), "SVG" if final_art is None else "final/", len(names),
+                 len(ambient_by_character[character]["eyelids"]),
                  "覆う" if ambient_by_character[character]["sleepFrameCoversBase"] else "覆えない"))
 
     work.rmdir()
@@ -285,6 +321,26 @@ def verify():
     return problems
 
 
+def verify_final():
+    """final/ があるキャラの、形と大きさと、Asset Catalog が final/ と同じか（整え直したのに回し忘れていないか）。"""
+    problems = []
+    poses_by_character = build_characters(check_only=True)
+    for character in chara.P:
+        try:
+            final_art = final.load(_final_folder(character), chara.FRAMES, chara.BLINK_OF)
+        except ValueError as error:
+            problems.append(str(error))
+            continue
+        if final_art is None:
+            continue
+        stale = final.stale_files(final_art, _final_names(character, poses_by_character[character]),
+                                  CHARACTER_CATALOG)
+        if stale:
+            problems.append("%s の Asset Catalog が final/ と違います（pipeline.py を回し直してください）: %s"
+                            % (character, "・".join(stale)))
+    return problems
+
+
 def main():
     parser = argparse.ArgumentParser(description="CharaTime アセットパイプライン")
     parser.add_argument("--check", action="store_true", help="書き出さず整合だけ見る")
@@ -299,7 +355,7 @@ def main():
         for path in masks.build():
             print("  %s" % path.name)
 
-    problems = verify() + masks.verify(ROOT / "ios/project.yml")
+    problems = verify() + verify_final() + masks.verify(ROOT / "ios/project.yml")
     if problems:
         for problem in problems:
             print("✗ %s" % problem, file=sys.stderr)
