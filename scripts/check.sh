@@ -5,7 +5,7 @@
 # .claude/CLAUDE.md §3 が要求する 3 つを、この順に回す。
 #   ① lint       swiftlint --strict（規約のうち機械が見張れる部分）
 #   ② typecheck  swift build（警告を 1 件も残さない）
-#   ③ test       swift test（4 パッケージの単体テスト）
+#   ③ test       swift test（パッケージごとの単体テスト。いまは 5 つ）
 #
 # コミットの前に必ずこれを通す。CI（.github/workflows/ios.yml）も同じものを見る。
 # シミュレータを起動しないので数秒で終わる。メモリ 8 GB の機械ではこれが主戦場。

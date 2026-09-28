@@ -42,6 +42,8 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
 - `CTRender` は SwiftUI のみ。UIKit と SpriteKit を入れない（ウィジェットと共有するため）。
   WidgetKit は、ウィジェットの描き分けの修飾子と環境の値のためだけに使う（D-27）。
 - ウィジェット拡張は約 30 MB のメモリ上限で動く。重い依存を足すときは必ず測る。
+- `CTStudio`（取り込んだ絵を整える。Phase 2 の 2-2）は CTCore・CTStore に依り、アプリと Mac の道具だけが使う。
+  **ウィジェットにはリンクしない**（Vision・Core Image と画素の処理を拡張に持ち込まない）。
 
 **画像とマスク書体はパイプライン経由でしか追加しない。** `tools/pipeline` が `characters.json` /
 `items.json` / `mask_fonts.json` と Asset Catalog・`ios/Shared/Fonts` を書き換える。手で画像や書体を足さない。
@@ -132,6 +134,8 @@ iOS はホーム画面に直接描画できないので、**複数の「面」�
 - **実行中のスクリプトを書き換えない。** bash は実行しながら読むので、構文エラーになる。
 - **`#expect` の中で `CGFloat` と `Double` を直接比べない。** 同じ値でも等しくならない。
   `Double(...)` にそろえてから比べる（3-2 で、差が 0 なのに落ちた）。
+- **画素を全部回すループは `eachIndex` で書く**（CTStudio の `PixelLoop.swift`）。最適化しないビルド（`swift test`）では
+  `for i in 0..<n` と `Array.map` の 1 回ごとが重い呼び出しになり、hero 1 枚（47 万画素）で 60 ms かかる（`eachIndex` は 3 ms。2-2）。
 
 **import**
 - `import` はファイル先頭に置く。条件付きは `#if os(iOS)` で囲む。
@@ -313,6 +317,13 @@ v2 の確かめ（A-7、ポーズ 6 コマ）は合格（縮めずに収まり�
 読めない子だけを読み飛ばす・10 体まで・書く側は形と絵の大きさを厳しく確かめる）。絵の出どころは CTRender の `SpriteSource`
 （同梱は Asset Catalog、取り込みは読んだ画像）、選び方は `AppState.chooseCharacter`（読めなければ同梱の先頭）。
 **アプリとウィジェットにつなぐのは 2-5・2-7**（いまは同梱の子だけを描く）。
+**2-2（整える処理）も済み**: 新しいパッケージ **CTStudio**。入口は `CharacterStudio.analyze`（画像 1 枚: 読む → 背景を外す →
+コマを見つける）と `assemble`（割り当てたコマ → 枠にそろえた hero と mini・まばたき・寝息・まぶたの差分・知らせ・取り込みの記録）。
+結果は `StudioResult.package` で `CharacterStore.install` に渡す。背景は透明・1 色・市松を自前で抜き（境の画素は内側の色から
+覆う割合を求める）、模様は `SubjectLifting`（Vision）。枠は立ち姿 93.05%・79.81%、足元 94.72%（いまの 5 体を画素より細かく
+測った値。縮めて並べて戻すと 1 画素以内）。プロンプトは `PromptTemplate`（テンプレートの A-7・B と 1 文字も違わない）。
+2-0 の本物の絵は 22 コマとも手直しなしで切り分けた。**目がほかの線に重なる子（いまのクマオ）は、まばたき無しにして F-EYES を勧める**。
+SVG は 2-6 で足す。次は 2-3（Mac の道具）と 2-5（キャラを選ぶ画面）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
