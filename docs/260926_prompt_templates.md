@@ -334,8 +334,8 @@ Use only these elements: svg, g, defs, use, path, circle, ellipse, rect. No text
 2. **B-1 シート**: 新しいチャットで ref の 2 枚を添えて送る。気に入るまで作り直す（ここで見た目が決まる）
 3. **B-2a・B-2b ポーズ**: それぞれ新しいチャットで、B-1 の絵を添えて送る
 4. **B-3 歩く**: 新しいチャットで、B-1 の絵を添えて送る
-5. 生成そのままの絵を `assets-src/characters/<id>/raw/` に置く（git に入れない）
-6. Claude が採点し（§3.3）、似たキャラを確かめ（§3.4）、Mac の道具で整えてコンタクトシートを見る。直しは §5 のプロンプトで
+5. 生成そのままの絵を `assets-src/characters/<id>/raw/` に、段の名前で始まる名前で置く（git に入れない）: `poses-a.png`（B-2a）・`poses-b.png`（B-2b）・`walk.png`（B-3）・`sheet_<n>.png`（B-1）。作り直した絵は `poses-a_2.png` のように番号を付ける（道具は同じ段の絵が 2 枚あれば、使う絵を指定させる）
+6. Claude が採点し（§3.3）、似たキャラを確かめ（§3.4）、Mac の道具で整えてコンタクトシートを見る（`swift run --package-path ios/Packages/CTStudio chara-bake <id>` → `final/` と `.shots/bake/<id>.png`。全キャラの一覧は `chara-bake contact-sheet`）。そろえば `python3 tools/pipeline/pipeline.py` で Asset Catalog に入れる。直しは §5 のプロンプトで（道具が知らせと一緒に出す）
 7. 記録を `assets-src/characters/<id>/prompts.md` に残す（§3.5）
 
 ### 3.2 5 体ぶんの組み上げたプロンプト（開いて、そのまま貼る）
