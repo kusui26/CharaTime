@@ -8,6 +8,7 @@ included:
   - ios/Packages/CTAssets/Sources
   - ios/Packages/CTRender/Sources
   - ios/Packages/CTStore/Sources
+  - ios/Packages/CTStudio/Sources
   - ios/CharaTime
   - ios/CharaTimeWidget
   - ios/Shared/Sources
