@@ -12,7 +12,7 @@
 | フェーズ | いつ | 誰が | どこで | 作るもの | 読む節 |
 |---|---|---|---|---|---|
 | **A 試し** | 2-0（済み。v2 の確かめ A-7 も済み） | ユーザー | ChatGPT | ピヨ 1 体（試し） | §2 |
-| **B 既定の 5 体** | 2-4（10/05〜） | ユーザー（生成）＋ Claude（採点・整える） | Mac の ChatGPT（Web かアプリ） | 5 体の本番の絵（ポーズ 4 コマを 2 枚） | §3 |
+| **B 既定の 5 体** | 2-4（09/28〜。生成は整える道具より先に始めてよい） | ユーザー（生成）＋ Claude（採点・整える） | Mac の ChatGPT（Web かアプリ） | 5 体の本番の絵（ポーズ 4 コマを 2 枚） | §3 |
 | **C 本番運用** | 2-6〜（アプリに載せる） | 利用者 | iPhone（キャラ工房がプロンプトを組み立てる） | 自分の子（ポーズ 6 コマを 1 枚） | §4 |
 
 どのフェーズも、**同じ本文（§1.3）** を使う（D-34）。違うのは、空欄をだれがどう埋めるか・参照画像の有無・ポーズを何枚に分けるか（D-38）だけ。
@@ -340,7 +340,7 @@ Use only these elements: svg, g, defs, use, path, circle, ellipse, rect. No text
 
 ### 3.2 5 体ぶんの組み上げたプロンプト（開いて、そのまま貼る）
 
-色は `design/chara.py` のパレット ✅。フワは足が無いので、足の言い回しを裾に置き換えてある（すわる姿は裾を広げ、歩きは裾が揺れる「すべる」4 コマ）。
+色は `design/chara.py` のパレット ✅。フワは足が無いので、足の言い回しを裾に置き換えてある（すわる姿は裾を広げ、歩きは裾が揺れる「すべる」4 コマ）。クマオは、目がマズルに重なるとアプリがまばたきを作れない（2-2）ので、目をマズルから離す一言を足してある。
 
 <details>
 <summary>ピヨ（piyo）</summary>
@@ -566,7 +566,7 @@ Background: fully transparent (real alpha, PNG). No background color, no checker
 ```text
 Character: "Kumao", a round bear-like creature. An original character, not based on any existing character or brand.
 Colors: body warm brown #C89464, arms and feet a slightly darker brown #B8814F, muzzle and inside of the ears cream #F2DCC2, cheeks #E79A86. Outline: dark brown #3B2B2B.
-Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; short rounded arms and feet.
+Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; the eyes sit above the muzzle and do not touch it; short rounded arms and feet.
 ```
 
 **B-1 キャラシート**（新しいチャットで、`ref/` の 2 枚を添えて送る）
@@ -579,7 +579,7 @@ Three full-body views side by side, left to right: FRONT, SIDE (facing left), BA
 
 Character: "Kumao", a round bear-like creature. An original character, not based on any existing character or brand.
 Colors: body warm brown #C89464, arms and feet a slightly darker brown #B8814F, muzzle and inside of the ears cream #F2DCC2, cheeks #E79A86. Outline: dark brown #3B2B2B.
-Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; short rounded arms and feet.
+Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; the eyes sit above the muzzle and do not touch it; short rounded arms and feet.
 
 Style: cute, simple mascot art. About two heads tall, big round head, short rounded limbs, no fingers.
 Thick, even dark-brown outline around every shape. Flat colors with at most one soft shade. No gradients, no texture, no glow.
@@ -603,7 +603,7 @@ Make ONE portrait image (3:4) with exactly 4 poses of this character in 2 rows x
 
 Character: "Kumao", a round bear-like creature. An original character, not based on any existing character or brand.
 Colors: body warm brown #C89464, arms and feet a slightly darker brown #B8814F, muzzle and inside of the ears cream #F2DCC2, cheeks #E79A86. Outline: dark brown #3B2B2B.
-Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; short rounded arms and feet.
+Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; the eyes sit above the muzzle and do not touch it; short rounded arms and feet.
 
 Style: cute, simple mascot art. About two heads tall, big round head, short rounded limbs, no fingers.
 Thick, even dark-brown outline around every shape. Flat colors with at most one soft shade. No gradients, no texture, no glow.
@@ -627,7 +627,7 @@ Make ONE portrait image (3:4) with exactly 4 poses of this character in 2 rows x
 
 Character: "Kumao", a round bear-like creature. An original character, not based on any existing character or brand.
 Colors: body warm brown #C89464, arms and feet a slightly darker brown #B8814F, muzzle and inside of the ears cream #F2DCC2, cheeks #E79A86. Outline: dark brown #3B2B2B.
-Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; short rounded arms and feet.
+Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; the eyes sit above the muzzle and do not touch it; short rounded arms and feet.
 
 Style: cute, simple mascot art. About two heads tall, big round head, short rounded limbs, no fingers.
 Thick, even dark-brown outline around every shape. Flat colors with at most one soft shade. No gradients, no texture, no glow.
@@ -651,7 +651,7 @@ Only the feet and arms move. The head and body keep the same size and the same h
 
 Character: "Kumao", a round bear-like creature. An original character, not based on any existing character or brand.
 Colors: body warm brown #C89464, arms and feet a slightly darker brown #B8814F, muzzle and inside of the ears cream #F2DCC2, cheeks #E79A86. Outline: dark brown #3B2B2B.
-Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; short rounded arms and feet.
+Keep these features exactly: two round ears with cream insides; a cream oval muzzle with a small dark nose; two small black dot eyes with a tiny white highlight; the eyes sit above the muzzle and do not touch it; short rounded arms and feet.
 
 Style: cute, simple mascot art. About two heads tall, big round head, short rounded limbs, no fingers.
 Thick, even dark-brown outline around every shape. Flat colors with at most one soft shade. No gradients, no texture, no glow.
@@ -941,7 +941,7 @@ List up to 5 with a similarity score from 0 to 10 and the shared features. If no
 ## 4. フェーズ C: 本番運用（キャラ工房。利用者向け）
 
 **ねらい**: 利用者が、少しの入力だけで、アプリの仕様を満たす絵を作れるようにする。アプリが本文（§1.3）を組み立て、段ごとにコピーのボタンで渡す（プラン 2-C ④、`design/CharaStudio.dc.html`）。
-**正本の置き場**: 2-6 で CTStudio（`PromptTemplate`）に移したら、**コードを正本にする**。この節は、そのときに説明と版の記録に変える（「定義の出どころはひとつ」）。
+**正本の置き場**: 2-2 で CTStudio の `PromptTemplate` に同じ本文を置いた。テスト（`PromptTemplateTests`）が、§2.2 の A-7 と §3.2 のピヨの B-2a・B-2b・B-3 が、コードで組み上げた文と 1 文字も違わないことを見張る（本文を直すときは、この文書とコードの両方を直す）。2-6 でキャラ工房に載せたら**コードを正本にし**、この節は説明と版の記録に変える（「定義の出どころはひとつ」）。
 
 ### 4.1 利用者が入れるもの（5 つ。2 つは任意）
 
@@ -1028,6 +1028,7 @@ List up to 5 with a similarity score from 0 to 10 and the shared features. If no
 |---|---|---|
 | v1 | 2026-09-26 | 初版。5 つの部品（D-37）、S1・P9・P6・P4・W4、フェーズ A・B・C、直しのプロンプト |
 | v2 | 2026-09-26 | 2-0 の試し（§2.1）の結果で改めた。A-7（§2.2）で、姿勢がまとまり縮めずに枠に収まること、6 コマで立ち姿が 449 画素になることを確かめた。④ 取り込みの条件に「姿勢を縦にまとめる」を足した。寝姿は丸まる、よろこぶは腕を頭の横に上げる／ほおの横に曲げる。ポーズから目を閉じたコマと寝息の 2 コマ目を外した（アプリが作る。D-38）。割り方を決めた（利用者 P6、既定の 5 体 P4 の 2 枚。D-38）。P9 はやめた（待受で約 1.8 倍に引き伸ばす）。P4 の 2 枚目の 4 コマ目を「驚く」（予備）にした。フェーズ B を 5 体ぶん組み上げた。直しに F-COMPACT を足し、F-BLINK を外した。解像度の目安を、立ち姿の外接矩形の高さ（実測できる値）で書き直した |
+| v2（追記） | 2026-09-28 | フェーズ B のクマオのキャラカードに `the eyes sit above the muzzle and do not touch it` を足した（2-2 で、目がほかの線に重なるとアプリがまばたきを作れないとわかった）。フェーズ C の本文は変えていないので、手引きの版は v2 のまま |
 
 ## 7. 出どころ
 
