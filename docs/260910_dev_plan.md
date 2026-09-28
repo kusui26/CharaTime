@@ -626,17 +626,22 @@ Be literal; do not give credit for 'close enough'. Accept only score >= 85 with 
 assets-src/characters/piyo/
 ├─ prompts.md        使ったプロンプトと修正履歴（§6.6 の記録）
 ├─ sheet.png         参照シート
-├─ raw/              生成そのまま（gitignore）
-│   ├─ poses*.png    ポーズの格子（割り方は 2-0 で決める）
-│   └─ walk.png      歩く 4 コマ
+├─ raw/              生成そのまま（gitignore）。名前は段の名前で始める（2-3）
+│   ├─ poses-a.png   ポーズ 4 コマの 1 枚目（B-2a）。作り直しは poses-a_2.png のように
+│   ├─ poses-b.png   ポーズ 4 コマの 2 枚目（B-2b）
+│   └─ walk.png      歩く 4 コマ（B-3）
 └─ final/            整えた絵（git 管理）。これがあるキャラは、pipeline が SVG の代わりに使う
     ├─ hero/         @3x 585×810（枠 130:180、接地線 93.33%）
-    └─ mini/         @3x 273×378、まぶたの差分
+    ├─ mini/         @3x 273×378、まぶたの差分
+    ├─ spare/        予備のコマ（見上げる・驚く。Phase 4 で使う。Asset Catalog には入れない）
+    └─ bake.json     整えたときの記録（どの絵をどう整えたか。描くのには使わない）
 ```
 
 ```bash
-# ① 整える（CTStudio。利用者の取り込みと同じ処理）
-swift run --package-path ios/Packages/CTStudio chara-bake piyo assets-src/characters/piyo/raw/*.png
+# ① 整える（CTStudio。利用者の取り込みと同じ処理）。絵を省くと raw/ の絵を使う。そろわなければ final/ に書かない
+swift run --package-path ios/Packages/CTStudio chara-bake piyo
+# 全キャラ × 全コマのコンタクトシート（.shots/bake/。final/ があればそれ、無ければいまの絵。40pt・24pt の列つき）
+swift run --package-path ios/Packages/CTStudio chara-bake contact-sheet
 # ② Asset Catalog と characters.json に入れる（final/ が無いキャラは design/ の SVG から焼く）
 python3 tools/pipeline/pipeline.py
 ```
@@ -743,7 +748,7 @@ ios/
    ├─ CTAssets/                 characters.json / items.json / Assets.xcassets（hero・mini の imageset）とローダ
    ├─ CTRender/                 SwiftUI 描画。SceneView, SpriteFrame, Shadow, Bubble, Effects(Canvas)。依存: CTCore, CTAssets
    ├─ CTStore/                  App Group の読み書き、設定、透過用切り抜き画像、文脈キャッシュ、取り込んだキャラ（v1.4）。依存: CTCore
-   └─ CTStudio/                 v1.4（D-35）: 取り込んだ絵を整える処理と Mac の道具 `chara-bake`。依存: CTCore, CTAssets。アプリと道具だけが使い、ウィジェットにはリンクしない
+   └─ CTStudio/                 v1.4（D-35）: 取り込んだ絵を整える処理と Mac の道具 `chara-bake`。依存: CTCore, CTStore（テストの見本に CTAssets）。アプリと道具だけが使い、ウィジェットにはリンクしない
 ```
 
 - 依存は一方向（CTCore ← CTAssets ← CTRender / CTStore ← app / widget。v1.4 の CTStudio は CTCore ← CTAssets ← CTStudio ← app / Mac の道具で、widget には入らない）。**CTCore は UIKit・SwiftUI に依存させない**。CTRender は SwiftUI のみ（SpriteKit・UIKit なし）。ウィジェットの描き分けの修飾子と環境の値のためだけに WidgetKit を使う（3-2、D-27）。
@@ -1455,7 +1460,7 @@ characters/user-3f9a2c/
 | **2-0** | **準備と試し**: (a) ユーザーがテンプレートのフェーズ A（`docs/260926_prompt_templates.md` §2）で、iPhone だけでピヨを 1 体作る（ChatGPT。できれば Gemini と Claude も）。写真とファイルの両方に保存して Mac に送り、形式・画素数・透明かどうか・かかった回数と時間・迷った所を残す。(b) Claude がその絵で、背景・切り分け・まばたきの作り方（H の S3・S6）を Mac で試す。SVG の描き手を試す（S4） | ユーザー（30〜60 分）＋ Claude | 見本の絵（`iPhone/`。git に入れない）と試しの記録 | 割り方（④）とまばたきの作り方の既定（⑤-6）が決まり、テンプレートを v2 にする。Q-18〜Q-22 の答えがそろう（2026-09-26 にそろった） |
 | **2-1** | **キャラの形と置き場**: 足りない姿勢の代わり（CTCore）、取り込んだキャラの保存・一覧・削除と絵の読み込み（CTStore）、絵の出どころ（CTRender） | Claude | テスト | 壊れたフォルダ・書きかけ・id の重なり・App Group が無いときに、ほかのキャラと既定の 5 体が生きる。取り込んだ子（テスト用の絵）で、日課と疑似アニメの答えが既定の子と同じ形で出る。**済み**（2026-09-27。アプリとウィジェットにつなぐのは 2-5・2-7） |
 | **2-2** | **整える処理（CTStudio）**: 読む・背景・切り分け・そろえ・hero と mini・まぶたと寝息・プロンプトの組み立て | Claude | パッケージとテスト | 合成した見本（⑫）で、元の枠・接地線と 1 画素以内。2-0 の本物の絵で、8 割以上を手直しなしで切り分ける。まばたきの差分が目のまわりに収まる。**済み**（2026-09-28。本物の絵は 22 コマとも手直しなし。SVG は 2-6 で足す） |
-| **2-3** | **Mac の道具 `chara-bake`** と、`tools/pipeline` の入口（`final/` → Asset Catalog） | Claude | 道具 | ピヨの SVG の絵を格子に並べて道具に通すと、いまの絵と同じ枠・接地線に戻る。`pipeline.py --check` が通る |
+| **2-3** | **Mac の道具 `chara-bake`** と、`tools/pipeline` の入口（`final/` → Asset Catalog） | Claude | 道具 | ピヨの SVG の絵を格子に並べて道具に通すと、いまの絵と同じ枠・接地線に戻る。`pipeline.py --check` が通る。**済み**（2026-09-28。立ち姿は 0.13 画素以内で戻る） |
 | **2-4** | **既定の 5 体の本番の絵**（テンプレートのフェーズ B。1 体目で手引きを直し、残り 4 体） | ユーザー（生成）＋ Claude（採点・整える・コンタクトシート） | 本番の絵、`prompts.md` | Gate 2 の 1 つ目（40pt で見分けがつく、ポーズで別の子にならない） |
 | **2-5** | キャラを選ぶ画面と性格の型 | Claude | 画面 | 選び直すと、待受とウィジェットが同じ子に替わる |
 | **2-6** | **キャラ工房**: 手引き（テンプレートのフェーズ C。サービスの選び方・説明・プロンプトのコピー・保存の仕方・直しのプロンプト）、取り込み、確かめる画面と動きの下見、名前と性格、登録、あとからコマを足す | Claude | 画面 | シミュレータで、見本の絵（ChatGPT の透明・Gemini の白い地・1 枚・市松・模様の地）から登録まで通る。実機で写真からの透明（S1）と Vision の速さ（S2）を確かめる（3-7 のあと） |
@@ -1515,7 +1520,7 @@ characters/user-3f9a2c/
 |---|---|
 | ~~09/28〜10/04~~ 09/26〜09/27（済み） | 2-0（試し）、2-1（キャラの形と置き場。09/28 にマージ） |
 | 09/28〜10/04 | 2-2（整える処理）。3-7 の 1 週間と重なる（実機には入れない）。10/03 ごろ 3-7 が終わったら Gate 3 を判定する。ユーザーは 2-4 の生成を始めてよい（生成そのままの絵を `assets-src/characters/<id>/raw/` に置く） |
-| 10/05〜10/11 | 2-2 の仕上げ、2-3（Mac の道具）、**2-5（キャラを選ぶ画面。前倒し）**。2-4 の 1 体目（ピヨ）を整えてコンタクトシートを見る |
+| 10/05〜10/11 | ~~2-2 の仕上げ、2-3（Mac の道具）~~（09/28 に済み）、**2-5（キャラを選ぶ画面。前倒し）**。2-4 の 1 体目（ピヨ）を整えてコンタクトシートを見る |
 | 10/12〜10/18 | 2-4 の残り 4 体、**2-6（キャラ工房）** |
 | 10/19〜10/25 | 2-6 の仕上げ、2-7、2-8、2-9 |
 | 10/26〜11/01 | 2-10、2-11、2-12（できれば）、2-13（Gate 2） |
@@ -1629,6 +1634,28 @@ characters/user-3f9a2c/
 - 2-3: Mac の道具 `chara-bake`（`CharacterStudio` を呼び、Vision を渡し、`assets-src/characters/<id>/final/` に書く）と、`tools/pipeline` の入口
 - 2-5: キャラを選ぶ画面（前倒し。10/05〜）
 - 2-6: キャラ工房の画面で `analyze` → 確かめる → `assemble` → `package` → `install` をつなぐ。SVG を足す。実機で Vision の速さ（S2）を測る
+
+#### Phase 2 の進捗（2026-09-28 セッション 19 続き・2-3 Mac の道具）
+
+**2-3 を実装した**（CTStudio パッケージの `chara-bake` と、`tools/pipeline` の入口）。既定の 5 体の本番の絵（2-4）を、利用者の取り込みと同じ関数で整えて Asset Catalog に入れる道がつながった（D-35）。
+
+| 部品 | 置き場所 | 決めたこと |
+|---|---|---|
+| 整える | `chara-bake <id> [生の絵…]`（中身は `CharaBake` の `CharacterBake`。入口の実行ターゲットは引数を渡すだけ） | 生の絵の割り方は名前の頭で決める（`poses-a`・`poses-b`・`walk`・`sheet`、利用者向けの `poses6`・`single`。作り直しは `_2` を付ける）。同じ割り方が 2 枚あれば使う絵を指定させる。立ち姿のある絵があれば、キャラシートは参照として使わない。絵を省くと `raw/` の絵を使う。**そろえるコマは、いまの `characters.json` のその子と同じ**（12 コマと、立つ・すわるのまぶた）。**そろわなければ `final/` に書かない**（Asset Catalog に欠けた子を入れない） |
+| `final/` | `assets-src/characters/<id>/final/` | 取り込んだキャラのフォルダと同じ名前の決まり（`hero/idle_01.png` など）。予備のコマは `spare/`、整えたときの記録は `bake.json`（日時を持たず、キーを並べて書く）。書くときは丸ごと入れ替える。焼き直しても同じ絵なら同じバイト（git の差分が出ない） |
+| 確かめ | `.shots/bake/<id>.png`（1 体ぶん）、`chara-bake contact-sheet`（全キャラ × 全コマ）、`chara-bake sample <id> <フォルダ>`（いまの絵を手引きの格子に並べた見本） | 1 体ぶんは hero（補助線: 足元・接地線・中央）、暗い地の mini（縁のにじみ）、枠の高さ 40pt・24pt の姿。全キャラの一覧は `final/` があればそれ、無ければいまの絵を並べ、40pt・24pt の立ち姿を横に並べる（Gate 2・§5.1）。知らせには直しのプロンプトを添える |
+| Asset Catalog へ | `tools/pipeline/final.py`（`pipeline.py` から呼ぶ） | @3x はそのまま、@2x・@1x は縮める（Lanczos。乗算済み）。まぶたは縮めた mini どうしで倍率ごとに作り直す。形が SVG のキャラと違えば、Asset Catalog を空にする前に止まる。`--check` は Asset Catalog が `final/` と違えば落ちる |
+
+**確かめたこと**（`scripts/check.sh` を通過。道具のテスト 16 件、パイプラインのテスト 7 件）
+
+- **2-3 の確かめ方**: いまのピヨの絵を手引きの格子（B-2a・B-2b・B-3、0.6〜0.68 倍）に並べて道具に通すと、立ち姿は元の枠と左右・上・下・中心が 0.13 画素以内に戻り、どのコマも足元が 94.72% にそろった。リポジトリの写しでパイプラインを回すと、`--check` と CTAssets のテスト（12 コマ・まぶた・余りの絵）が通り、@2x・@1x の立ち姿も 0.11 画素以内。まぶたの差分を重ねると、3 倍率ともまばたきの mini と 1 画素も違わない
+- **作り替えで SVG の道を壊していない**: 写しでピヨだけを `final/` にして全部を焼き直すと、ほか 4 体・アイテム・マスク書体・`characters.json` は 1 バイトも変わらなかった
+- いまの 5 体の見本では、ピヨ・モチ・フワ・チップはそろい（立ち姿の背は元の絵と 0.2 画素以内）、**クマオはまばたきを作れず `final/` に書かない**（目がマズルに重なる。F-EYES を示す）。すわる・寝る・歩くは取り込みの決まり（足元 94.72%・上 6 割の中心・歩く 4 コマは背の中央値）で置き直すので、いまの SVG の置き方とは位置がずれる（大きさは 0.4 画素以内。歩くは背の中央値の決まりで約 1% 小さい）
+
+**次にやること**
+
+- 2-4: ユーザーがフェーズ B で生成し、`raw/` に段の名前で置く → Claude が採点し、`chara-bake <id>` で整え、コンタクトシートを見て、`pipeline.py` で入れる
+- 2-5: キャラを選ぶ画面（前倒し。10/05〜）
 
 ### Phase 3: ホーム画面ウィジェット（09/24〜10/18。Phase 2 より先に行う）
 

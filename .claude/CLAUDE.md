@@ -213,6 +213,15 @@ scripts/ios-loop.sh --screen weekRun                # 設定の「1 週間の運
 **コミット前には必ず `scripts/check.sh` を通す。** 3 つの品質ゲート（lint・
 警告ゼロのビルド・テスト）をこれ 1 つで回す。CI も同じものを見る。
 
+**既定の 5 体の本番の絵**（2-3・2-4）は、Mac の道具で整えてから、パイプラインで Asset Catalog に入れる。
+
+```bash
+swift run --package-path ios/Packages/CTStudio chara-bake <id>          # raw/ の生の絵を整えて final/ に（.shots/bake/<id>.png も）
+swift run --package-path ios/Packages/CTStudio chara-bake contact-sheet  # 全キャラ × 全コマ（.shots/bake/contact-sheet.png）
+python3 tools/pipeline/pipeline.py                                       # final/ を Asset Catalog に入れる
+python3 -m unittest discover -s tools/pipeline -p 'test_*.py'           # パイプラインの final/ の入れ方のテスト
+```
+
 **核心は「スクリーンショットを撮って、Claude 自身がそれを見る」こと。** `.shots/latest.png` を
 Read すれば、自分が書いた UI を目で確認して直せます。
 
@@ -323,7 +332,12 @@ v2 の確かめ（A-7、ポーズ 6 コマ）は合格（縮めずに収まり�
 覆う割合を求める）、模様は `SubjectLifting`（Vision）。枠は立ち姿 93.05%・79.81%、足元 94.72%（いまの 5 体を画素より細かく
 測った値。縮めて並べて戻すと 1 画素以内）。プロンプトは `PromptTemplate`（テンプレートの A-7・B と 1 文字も違わない）。
 2-0 の本物の絵は 22 コマとも手直しなしで切り分けた。**目がほかの線に重なる子（いまのクマオ）は、まばたき無しにして F-EYES を勧める**。
-SVG は 2-6 で足す。次は 2-3（Mac の道具）と 2-5（キャラを選ぶ画面）。
+SVG は 2-6 で足す。
+**2-3（Mac の道具）も済み**: `chara-bake <id>` が `raw/` の生の絵（名前は `poses-a`・`poses-b`・`walk` で始める）を 2-2 と
+同じ関数で整え、そろえば `assets-src/characters/<id>/final/` に書く（12 コマと、立つ・すわるのまぶたが、いまの `characters.json`
+と同じにそろわなければ書かない。確かめのコンタクトシートは `.shots/bake/`）。`tools/pipeline` は `final/` があればそこから
+（@2x・@1x は縮め、まぶたは倍率ごとに作り直す）、無ければ SVG から焼く。いまのピヨを格子に並べて通すと、立ち姿は
+0.13 画素以内で元に戻る。次は 2-4（ユーザーの生成）と 2-5（キャラを選ぶ画面）。
 
 アセットは併走方針: Phase 0〜1 は `design/` の SVG を `tools/pipeline` で PNG に焼いて動かし、
 生成 AI の制作フローは Phase 2 の本番アセットで通します。
