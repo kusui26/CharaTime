@@ -87,9 +87,13 @@ public struct ImportRecord: Codable, Sendable, Equatable {
     public var stage: Stage
     /// 取り込んだ順。あとからコマを足したら（2-C ⑤-9）、後ろに足す。
     public var sources: [Source]
+    /// 取り込んだときに画面に出していた手引き（プロンプトのテンプレート）の版（`PromptTemplate.version`）。
+    /// どの版で切り分けにつまずきやすいかを、あとで見る（テンプレートの §4.5）。2-1 の記録には無い。
+    public var guideVersion: String?
 
-    public init(stage: Stage, sources: [Source]) {
+    public init(stage: Stage, sources: [Source], guideVersion: String? = nil) {
         self.stage = stage
         self.sources = sources
+        self.guideVersion = guideVersion
     }
 }

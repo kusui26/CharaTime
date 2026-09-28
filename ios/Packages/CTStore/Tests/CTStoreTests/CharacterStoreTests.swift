@@ -75,6 +75,16 @@ struct CharacterStoreTests {
         #expect(file.importRecord == nil)
     }
 
+    @Test("取り込みの記録に手引きの版を残す。版の無い記録（2-1 の形）も読める")
+    func recordKeepsTheGuideVersion() throws {
+        let record = ImportRecord(stage: .poses, sources: [
+            ImportRecord.Source(pixelWidth: 1254, pixelHeight: 1254, background: .solidColor),
+        ], guideVersion: "v2")
+        #expect(try JSONDecoder().decode(ImportRecord.self, from: JSONEncoder().encode(record)) == record)
+        let older = Data(#"{"stage":"single","sources":[]}"#.utf8)
+        #expect(try JSONDecoder().decode(ImportRecord.self, from: older).guideVersion == nil)
+    }
+
     /// 記録は描くのに使わない。壊れていても、キャラまで捨てない。
     @Test("取り込みの記録が壊れていても、キャラは読める（記録だけを捨てる）")
     func brokenRecordIsDropped() throws {
